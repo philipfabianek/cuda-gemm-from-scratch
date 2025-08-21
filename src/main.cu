@@ -1,13 +1,11 @@
+#include "kernels/01_naive.cuh"
+#include "utils.cuh"
 #include <cstdio>
 #include <vector>
-#include "utils.cuh"
-#include "kernels/01_naive.cuh"
 
 void run_kernel(int kernel_id, int M, int N, int K, float alpha, float *d_A,
-                float *d_B, float beta, float *d_C)
-{
-  switch (kernel_id)
-  {
+                float *d_B, float beta, float *d_C) {
+  switch (kernel_id) {
   case 1:
     run_naive_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
@@ -17,10 +15,8 @@ void run_kernel(int kernel_id, int M, int N, int K, float alpha, float *d_A,
   }
 }
 
-int main(int argc, char **argv)
-{
-  if (argc != 2)
-  {
+int main(int argc, char **argv) {
+  if (argc != 2) {
     fprintf(stderr, "Usage: %s <kernel_id>\n", argv[0]);
     return 1;
   }
