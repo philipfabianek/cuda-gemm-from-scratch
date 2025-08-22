@@ -1,11 +1,16 @@
-#include "kernels/01_naive.cuh"
-#include "utils.cuh"
 #include <cstdio>
 #include <vector>
 
-void run_kernel(int kernel_id, int M, int N, int K, float alpha, float *d_A,
-                float *d_B, float beta, float *d_C) {
+#include "kernels/00_cublas.cuh"
+#include "kernels/01_naive.cuh"
+#include "utils.cuh"
+
+void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
+                float alpha, float *d_A, float *d_B, float beta, float *d_C) {
   switch (kernel_id) {
+  case 0:
+    run_cublas_kernel(handle, M, K, N, alpha, d_A, d_B, beta, d_C);
+    break;
   case 1:
     run_naive_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
@@ -30,6 +35,10 @@ int main(int argc, char **argv) {
   int K = size;
   float alpha = 2.0f;
   float beta = 0.5f;
+
+  // Create cublas handle
+  cublasHandle_t handle;
+  cublasCreate(&handle);
 
   // Prepare host matrices
   std::vector<float> h_A(M * K);
@@ -58,7 +67,7 @@ int main(int argc, char **argv) {
   CUDA_CHECK(cudaMemcpy(d_C, h_C.data(), c_size, cudaMemcpyHostToDevice));
 
   // Warm-up run, reset d_C afterwards!
-  run_kernel(kernel_id, M, N, K, alpha, d_A, d_B, beta, d_C);
+  run_kernel(kernel_id, handle, M, N, K, alpha, d_A, d_B, beta, d_C);
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());
   CUDA_CHECK(cudaMemcpy(d_C, h_C.data(), c_size, cudaMemcpyHostToDevice));
@@ -70,7 +79,7 @@ int main(int argc, char **argv) {
   CUDA_CHECK(cudaEventRecord(start));
 
   // Execute the kernel, no need to check errors now
-  run_kernel(kernel_id, M, N, K, alpha, d_A, d_B, beta, d_C);
+  run_kernel(kernel_id, handle, M, N, K, alpha, d_A, d_B, beta, d_C);
 
   // Record the end time and synchronize
   CUDA_CHECK(cudaEventRecord(stop));
@@ -99,6 +108,8 @@ int main(int argc, char **argv) {
 
   CUDA_CHECK(cudaEventDestroy(start));
   CUDA_CHECK(cudaEventDestroy(stop));
+
+  cublasDestroy(handle);
 
   return 0;
 }
