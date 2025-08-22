@@ -35,7 +35,10 @@ You can run a specific kernel by passing its ID as a command-line argument:
 
 ```bash
 # Run the naive kernel (ID 1)
-./sgemm_runner 1
+./build/sgemm_runner --kernel 1
+
+# Run with a different size and number of repeats
+./build/sgemm_runner --kernel 1 --size 4096 --repeats 50
 ```
 
 ## License
