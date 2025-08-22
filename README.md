@@ -4,7 +4,7 @@ This repository is a step-by-step implementation and optimization of (single-pre
 
 The project is heavily inspired by the article [CUDA Matrix Multiply](https://siboehm.com/articles/22/CUDA-MMM) and serves as a deep-dive into a single algorithm, one of the most important for deep learning.
 
-Each kernel is profiled on an **NVIDIA GeForce RTX 3070**.
+Each kernel is profiled on **NVIDIA GeForce RTX 3070**.
 
 ## Building the Project
 

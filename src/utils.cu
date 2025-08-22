@@ -1,3 +1,4 @@
+#include "kernels/verify.cuh"
 #include "utils.cuh"
 
 void initialize_matrix(std::vector<float> &matrix, int rows, int cols,
@@ -16,32 +17,33 @@ void initialize_matrix(std::vector<float> &matrix, int rows, int cols,
   }
 }
 
-int verify_on_cpu(int M, int K, int N, float alpha, const std::vector<float> &A,
-                  const std::vector<float> &B, float beta,
-                  const std::vector<float> &C_initial,
-                  const std::vector<float> &C_result) {
-  int samples_to_check = 1000;
+void verify_with_cublas_reference(int M, int N, const float *d_C_result,
+                                  const float *d_C_reference) {
+  printf("Verifying results against cuBLAS...\n");
 
-  for (int s = 0; s < samples_to_check; ++s) {
-    int row = rand() % M;
-    int col = rand() % N;
+  int n_elements = M * N;
 
-    float dot_product = 0.0f;
-    for (int k = 0; k < K; ++k) {
-      dot_product += A[row * K + k] * B[k * N + col];
-    }
+  // Define variable to hold error (mismatch) count
+  int h_error_count = 0;
+  int *d_error_count;
+  CUDA_CHECK(cudaMalloc(&d_error_count, sizeof(int)));
+  CUDA_CHECK(cudaMemset(d_error_count, 0, sizeof(int)));
 
-    float expected_value =
-        alpha * dot_product + beta * C_initial[row * N + col];
-    float gpu_result = C_result[row * N + col];
+  // Configure and launch comparison kernel
+  int threads_per_block = 256;
+  int num_blocks = (n_elements + threads_per_block - 1) / threads_per_block;
+  comparison_kernel<<<num_blocks, threads_per_block>>>(
+      d_C_result, d_C_reference, n_elements, d_error_count);
 
-    if (fabs(gpu_result - expected_value) > 1e-4) {
-      printf("Mismatch at (%d, %d): CPU expected %f, GPU produced %f\n", row,
-             col, expected_value, gpu_result);
-      return 1;
-    }
+  // Copy the final error count back from device to host
+  CUDA_CHECK(cudaMemcpy(&h_error_count, d_error_count, sizeof(int),
+                        cudaMemcpyDeviceToHost));
+  CUDA_CHECK(cudaFree(d_error_count));
+
+  if (h_error_count == 0) {
+    printf("SUCCESS: All values match cuBLAS reference.\n");
+  } else {
+    printf("FAILURE: %d mismatches found against cuBLAS reference.\n",
+           h_error_count);
   }
-
-  printf("All (sampled) values match!\n");
-  return 0;
 }

@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
   std::vector<float> h_C_initial = h_C;
 
   // Prepare device variables
-  float *d_A, *d_B, *d_C;
+  float *d_A, *d_B, *d_C, *d_C_reference;
   size_t a_size = h_A.size() * sizeof(float);
   size_t b_size = h_B.size() * sizeof(float);
   size_t c_size = h_C.size() * sizeof(float);
@@ -61,12 +61,19 @@ int main(int argc, char **argv) {
   CUDA_CHECK(cudaMalloc(&d_A, a_size));
   CUDA_CHECK(cudaMalloc(&d_B, b_size));
   CUDA_CHECK(cudaMalloc(&d_C, c_size));
+  CUDA_CHECK(cudaMalloc(&d_C_reference, c_size));
 
   CUDA_CHECK(cudaMemcpy(d_A, h_A.data(), a_size, cudaMemcpyHostToDevice));
   CUDA_CHECK(cudaMemcpy(d_B, h_B.data(), b_size, cudaMemcpyHostToDevice));
   CUDA_CHECK(cudaMemcpy(d_C, h_C.data(), c_size, cudaMemcpyHostToDevice));
 
-  // Warm-up run, reset d_C afterwards!
+  // Generate cublas reference, reset d_C afterwards
+  CUDA_CHECK(
+      cudaMemcpy(d_C_reference, h_C.data(), c_size, cudaMemcpyHostToDevice));
+  run_cublas_kernel(handle, M, K, N, alpha, d_A, d_B, beta, d_C_reference);
+  CUDA_CHECK(cudaMemcpy(d_C, h_C.data(), c_size, cudaMemcpyHostToDevice));
+
+  // Warm-up run, reset d_C afterwards
   run_kernel(kernel_id, handle, M, N, K, alpha, d_A, d_B, beta, d_C);
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());
@@ -98,13 +105,13 @@ int main(int argc, char **argv) {
   printf("Performance: %.2f TFLOPS\n", tflops);
 
   // Verify results
-  CUDA_CHECK(cudaMemcpy(h_C.data(), d_C, c_size, cudaMemcpyDeviceToHost));
-  verify_on_cpu(M, K, N, alpha, h_A, h_B, beta, h_C_initial, h_C);
+  verify_with_cublas_reference(M, N, d_C, d_C_reference);
 
   // Free memory and destroy events
   CUDA_CHECK(cudaFree(d_A));
   CUDA_CHECK(cudaFree(d_B));
   CUDA_CHECK(cudaFree(d_C));
+  CUDA_CHECK(cudaFree(d_C_reference));
 
   CUDA_CHECK(cudaEventDestroy(start));
   CUDA_CHECK(cudaEventDestroy(stop));

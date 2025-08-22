@@ -16,7 +16,5 @@
 void initialize_matrix(std::vector<float> &matrix, int rows, int cols,
                        bool is_random);
 
-int verify_on_cpu(int M, int K, int N, float alpha, const std::vector<float> &A,
-                  const std::vector<float> &B, float beta,
-                  const std::vector<float> &C_initial,
-                  const std::vector<float> &C_result);
+void verify_with_cublas_reference(int M, int N, const float *d_C_result,
+                                  const float *d_C_reference);
