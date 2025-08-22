@@ -2,8 +2,8 @@
 
 __global__ void sgemm_naive_kernel(int M, int N, int K, float alpha, float *d_A,
                                    float *d_B, float beta, float *d_C) {
-  const uint col = blockIdx.x * blockDim.x + threadIdx.x;
-  const uint row = blockIdx.y * blockDim.y + threadIdx.y;
+  const int col = blockIdx.x * blockDim.x + threadIdx.x;
+  const int row = blockIdx.y * blockDim.y + threadIdx.y;
 
   if (row < M && col < N) {
     float sum = 0;
@@ -16,10 +16,9 @@ __global__ void sgemm_naive_kernel(int M, int N, int K, float alpha, float *d_A,
 
 void run_naive_kernel(int M, int N, int K, float alpha, float *d_A, float *d_B,
                       float beta, float *d_C) {
-  dim3 threads_per_block(16, 16);
-  dim3 num_blocks((N + threads_per_block.x - 1) / threads_per_block.x,
-                  (M + threads_per_block.y - 1) / threads_per_block.y);
+  dim3 block_dim(16, 16);
+  dim3 grid_dim((N + 16 - 1) / 16, (M + 16 - 1) / 16);
 
-  sgemm_naive_kernel<<<num_blocks, threads_per_block>>>(M, N, K, alpha, d_A,
-                                                        d_B, beta, d_C);
+  sgemm_naive_kernel<<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta,
+                                              d_C);
 }

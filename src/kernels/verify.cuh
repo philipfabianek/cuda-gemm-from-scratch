@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-constexpr float VERIFICATION_TOLERANCE = 1e-3f;
+constexpr float VERIFICATION_TOLERANCE = 1e-4f;
 
 __global__ void comparison_kernel(const float *result, const float *reference,
                                   int n_elements, int *error_count) {
