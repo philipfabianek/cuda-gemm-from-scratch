@@ -12,7 +12,11 @@ void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
 
   // Hence it suffices to call cublasSgemm with swapped matrices and dimensions.
   // We also need to supply leading dimensions, which are the number of rows of
-  // the original matrices.
+  // the transposed matrices.
+
+  // B is K x N -> transpose is N x K -> leading dimension is N
+  // A is M x K -> transpose is K x M -> leading dimension is K
+  // C is M x N -> transpose is N x M -> leading dimension is N
 
   // CUBLAS_OP_N means we don't want any transpose from cuBLAS's perspective.
   cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, d_B, N, d_A, K,
