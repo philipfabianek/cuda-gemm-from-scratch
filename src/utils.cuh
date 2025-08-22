@@ -13,8 +13,7 @@
     }                                                                          \
   }
 
-void initialize_matrix(std::vector<float> &matrix, int rows, int cols,
-                       bool is_random);
+void initialize_matrix(std::vector<float> &matrix, int rows, int cols);
 
 void verify_with_cublas_reference(int M, int N, const float *d_C_result,
                                   const float *d_C_reference);

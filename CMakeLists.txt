@@ -14,6 +14,6 @@ set(CUDA_COMPUTE_CAPABILITY 86)
 
 # --- Executables ---
 
-add_executable(sgemm_runner src/main.cu src/utils.cu)
+add_executable(sgemm_runner src/main.cu src/utils.cu src/arg_parser.cu)
 target_link_libraries(sgemm_runner ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 set_target_properties(sgemm_runner PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})

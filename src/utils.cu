@@ -1,19 +1,12 @@
 #include "kernels/verify.cuh"
 #include "utils.cuh"
 
-void initialize_matrix(std::vector<float> &matrix, int rows, int cols,
-                       bool is_random) {
-  if (is_random) {
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::default_random_engine generator(seed);
-    std::uniform_real_distribution<float> distribution(-0.5f, 0.5f);
-    for (int i = 0; i < rows * cols; ++i) {
-      matrix[i] = distribution(generator);
-    }
-  } else {
-    for (int i = 0; i < rows * cols; ++i) {
-      matrix[i] = 1.0f;
-    }
+void initialize_matrix(std::vector<float> &matrix, int rows, int cols) {
+  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine generator(seed);
+  std::uniform_real_distribution<float> distribution(-0.5f, 0.5f);
+  for (int i = 0; i < rows * cols; ++i) {
+    matrix[i] = distribution(generator);
   }
 }
 
