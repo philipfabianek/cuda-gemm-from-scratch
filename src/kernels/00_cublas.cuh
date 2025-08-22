@@ -2,7 +2,7 @@
 
 #include <cublas_v2.h>
 
-void run_cublas_kernel(cublasHandle_t handle, int M, int K, int N, float alpha,
+void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
                        const float *d_A, const float *d_B, float beta,
                        float *d_C) {
   // cuBLAS uses column-major order, we can use that
@@ -15,6 +15,6 @@ void run_cublas_kernel(cublasHandle_t handle, int M, int K, int N, float alpha,
   // the original matrices.
 
   // CUBLAS_OP_N means we don't want any transpose from cuBLAS's perspective.
-  cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, d_B, K, d_A, N,
+  cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, d_B, N, d_A, K,
               &beta, d_C, N);
 }

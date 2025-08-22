@@ -14,12 +14,12 @@ __global__ void sgemm_naive_kernel(int M, int N, int K, float alpha, float *d_A,
   }
 }
 
-void run_naive_kernel(int M, int K, int N, float alpha, float *d_A, float *d_B,
+void run_naive_kernel(int M, int N, int K, float alpha, float *d_A, float *d_B,
                       float beta, float *d_C) {
   dim3 threads_per_block(16, 16);
   dim3 num_blocks((N + threads_per_block.x - 1) / threads_per_block.x,
                   (M + threads_per_block.y - 1) / threads_per_block.y);
 
-  sgemm_naive_kernel<<<num_blocks, threads_per_block>>>(M, K, N, alpha, d_A,
+  sgemm_naive_kernel<<<num_blocks, threads_per_block>>>(M, N, K, alpha, d_A,
                                                         d_B, beta, d_C);
 }

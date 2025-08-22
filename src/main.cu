@@ -9,7 +9,7 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
                 float alpha, float *d_A, float *d_B, float beta, float *d_C) {
   switch (kernel_id) {
   case 0:
-    run_cublas_kernel(handle, M, K, N, alpha, d_A, d_B, beta, d_C);
+    run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 1:
     run_naive_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
   // Generate cublas reference, reset d_C afterwards
   CUDA_CHECK(
       cudaMemcpy(d_C_reference, h_C.data(), c_size, cudaMemcpyHostToDevice));
-  run_cublas_kernel(handle, M, K, N, alpha, d_A, d_B, beta, d_C_reference);
+  run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C_reference);
   CUDA_CHECK(cudaMemcpy(d_C, h_C.data(), c_size, cudaMemcpyHostToDevice));
 
   // Warm-up run, reset d_C afterwards
