@@ -38,8 +38,27 @@ You can run a specific kernel by passing its ID as a command-line argument:
 ./build/sgemm_runner --kernel 1
 
 # Run with a different size and number of repeats
-./build/sgemm_runner --kernel 1 --size 4096 --repeats 50
+./build/sgemm_runner --kernel 1 --size 2048 --repeats 50
 ```
+
+## Performance Overview
+
+Performance for a 2048x2048 matrix multiplication on an NVIDIA GeForce RTX 3070.
+
+| ID  | Kernel     |     GFLOPS | Performance vs. cuBLAS |
+| --- | :--------- | ---------: | :--------------------- |
+| 0   | **cuBLAS** | `~11613.7` | 100.00%                |
+| 1   | **Naive**  |  `~1343.8` | 11.6%                  |
+
+## Kernel Explanations
+
+### 0: [cuBLAS](./src/kernels/00_cublas.cuh)
+
+Reference implementation created by NVIDIA. Highly optimized, state-of-the-art, extremely performant.
+
+### 1: [Naive](./src/kernels/01_naive.cuh)
+
+Simple matrix multiplication kernel with coalesced memory access. Threads in a warp read the same elements from the first matrix and consecutive elements from the second matrix (`threadIdx.x` is mapped to the columns of the second matrix). This results in memory coalescing. The main bottleneck is global memory usage.
 
 ## License
 
