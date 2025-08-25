@@ -1,7 +1,8 @@
 #pragma once
 
-__global__ void sgemm_naive_kernel(int M, int N, int K, float alpha, float *d_A,
-                                   float *d_B, float beta, float *d_C) {
+__global__ void sgemm_naive_kernel(int M, int N, int K, float alpha,
+                                   const float *d_A, const float *d_B,
+                                   float beta, float *d_C) {
   const int col = blockIdx.x * blockDim.x + threadIdx.x;
   const int row = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -14,8 +15,8 @@ __global__ void sgemm_naive_kernel(int M, int N, int K, float alpha, float *d_A,
   }
 }
 
-void run_naive_kernel(int M, int N, int K, float alpha, float *d_A, float *d_B,
-                      float beta, float *d_C) {
+void run_naive_kernel(int M, int N, int K, float alpha, const float *d_A,
+                      const float *d_B, float beta, float *d_C) {
   dim3 block_dim(16, 16);
   dim3 grid_dim((N + 16 - 1) / 16, (M + 16 - 1) / 16);
 

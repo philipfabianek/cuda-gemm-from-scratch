@@ -8,7 +8,8 @@
 #include "utils.cuh"
 
 void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
-                float alpha, float *d_A, float *d_B, float beta, float *d_C) {
+                float alpha, const float *d_A, const float *d_B, float beta,
+                float *d_C) {
   switch (kernel_id) {
   case 0:
     run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C);

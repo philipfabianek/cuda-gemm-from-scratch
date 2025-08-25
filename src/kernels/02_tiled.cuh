@@ -1,8 +1,9 @@
 #pragma once
 
 template <const int TILE_DIM>
-__global__ void sgemm_tiled_kernel(int M, int N, int K, float alpha, float *d_A,
-                                   float *d_B, float beta, float *d_C) {
+__global__ void sgemm_tiled_kernel(int M, int N, int K, float alpha,
+                                   const float *d_A, const float *d_B,
+                                   float beta, float *d_C) {
   int col = blockIdx.x * TILE_DIM + threadIdx.x;
   int row = blockIdx.y * TILE_DIM + threadIdx.y;
 
@@ -44,8 +45,8 @@ __global__ void sgemm_tiled_kernel(int M, int N, int K, float alpha, float *d_A,
   }
 }
 
-void run_tiled_kernel(int M, int N, int K, float alpha, float *d_A, float *d_B,
-                      float beta, float *d_C) {
+void run_tiled_kernel(int M, int N, int K, float alpha, const float *d_A,
+                      const float *d_B, float beta, float *d_C) {
   const int TILE_DIM = 16;
   dim3 threads_per_block(TILE_DIM, TILE_DIM);
   dim3 num_blocks((N + threads_per_block.x - 1) / threads_per_block.x,
