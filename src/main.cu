@@ -4,6 +4,7 @@
 #include "arg_parser.cuh"
 #include "kernels/00_cublas.cuh"
 #include "kernels/01_naive.cuh"
+#include "kernels/02_tiled.cuh"
 #include "utils.cuh"
 
 void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
@@ -14,6 +15,9 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
     break;
   case 1:
     run_naive_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    break;
+  case 2:
+    run_tiled_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   default:
     fprintf(stderr, "Error: Invalid kernel ID.\n");
@@ -112,10 +116,10 @@ int main(int argc, char **argv) {
   CUDA_CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
   float avg_milliseconds = milliseconds / repeats;
   long long total_ops = (long long)2 * M * K * N;
-  double tflops = (double)total_ops / (avg_milliseconds / 1000.0) / 1e12;
+  double gflops = (double)total_ops / (avg_milliseconds / 1000.0) / 1e9;
   printf("Kernel ID %d - Average time: (%f) ms, performance: (%.2f) GFLOPS, "
          "size: (%d).\n",
-         kernel_id, avg_milliseconds, tflops * 1000, size);
+         kernel_id, avg_milliseconds, gflops, size);
 
   // Free memory and destroy events
   CUDA_CHECK(cudaFree(d_A));

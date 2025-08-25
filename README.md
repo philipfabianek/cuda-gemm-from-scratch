@@ -45,10 +45,11 @@ You can run a specific kernel by passing its ID as a command-line argument:
 
 Performance for a 2048x2048 matrix multiplication on an NVIDIA GeForce RTX 3070.
 
-| ID  | Kernel     |     GFLOPS | Performance vs. cuBLAS |
-| --- | :--------- | ---------: | :--------------------- |
-| 0   | **cuBLAS** | `~11613.7` | 100.00%                |
-| 1   | **Naive**  |  `~1343.8` | 11.6%                  |
+| ID  | Kernel     |      GFLOPS | Performance vs. cuBLAS |
+| --- | :--------- | ----------: | :--------------------- |
+| 0   | **cuBLAS** | `~11,613.7` | 100.00%                |
+| 1   | **Naive**  |  `~1,343.8` | 11.6%                  |
+| 2   | **Tiled**  |  `~1,805.8` | 15.5%                  |
 
 ## Kernel Explanations
 
@@ -59,6 +60,10 @@ Reference implementation created by NVIDIA. Highly optimized, state-of-the-art, 
 ### 1: [Naive](./src/kernels/01_naive.cuh)
 
 Simple matrix multiplication kernel with coalesced memory access. Threads in a warp read the same elements from the first matrix and consecutive elements from the second matrix (`threadIdx.x` is mapped to the columns of the second matrix). This results in memory coalescing. The main bottleneck is global memory usage.
+
+### 2: [Tiled](./src/kernels/02_tiled.cuh)
+
+Each block in this kernel computes an output tile by loading tiles from the input matrices into shared memory and then performing the calculations using the loaded tiles. This reduces global memory usage. Global memory access is still coalesced for threads in a warp.
 
 ## License
 
