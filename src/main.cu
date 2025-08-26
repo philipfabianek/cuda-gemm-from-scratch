@@ -6,6 +6,7 @@
 #include "kernels/01_naive.cuh"
 #include "kernels/02_tiled.cuh"
 #include "kernels/03_1D_coarsened.cuh"
+#include "kernels/04_2D_coarsened.cuh"
 #include "utils.cuh"
 
 void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
@@ -23,6 +24,9 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
     break;
   case 3:
     run_1D_coarsened_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    break;
+  case 4:
+    run_2D_coarsened_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   default:
     fprintf(stderr, "Error: Invalid kernel ID.\n");
