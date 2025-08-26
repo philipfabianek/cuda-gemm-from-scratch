@@ -60,7 +60,7 @@ Reference implementation created by NVIDIA. Highly optimized, state-of-the-art, 
 
 ### 1: [Naive](./src/kernels/01_naive.cuh)
 
-Simple matrix multiplication kernel with coalesced memory access where each thrad computes one output element. Threads in a warp read the same elements from the first matrix and consecutive elements from the second matrix (`threadIdx.x` is mapped to the columns of the second matrix). This results in memory coalescing. The main bottleneck is global memory usage.
+Simple matrix multiplication kernel with coalesced memory access where each thread computes one output element. Threads in a warp read the same elements from the first matrix and consecutive elements from the second matrix (`threadIdx.x` is mapped to the columns of the second matrix). This results in memory coalescing. The main bottleneck is global memory usage.
 
 ### 2: [Tiled](./src/kernels/02_tiled.cuh)
 
