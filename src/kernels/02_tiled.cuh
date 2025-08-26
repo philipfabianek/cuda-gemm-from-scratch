@@ -48,10 +48,11 @@ __global__ void sgemm_tiled_kernel(int M, int N, int K, float alpha,
 void run_tiled_kernel(int M, int N, int K, float alpha, const float *d_A,
                       const float *d_B, float beta, float *d_C) {
   const int TILE_DIM = 16;
+
   dim3 threads_per_block(TILE_DIM, TILE_DIM);
-  dim3 num_blocks((N + threads_per_block.x - 1) / threads_per_block.x,
-                  (M + threads_per_block.y - 1) / threads_per_block.y);
+  dim3 grid_dim((N + threads_per_block.x - 1) / threads_per_block.x,
+                (M + threads_per_block.y - 1) / threads_per_block.y);
 
   sgemm_tiled_kernel<TILE_DIM>
-      <<<num_blocks, threads_per_block>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
+      <<<grid_dim, threads_per_block>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
