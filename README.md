@@ -69,7 +69,7 @@ Each block in this kernel computes an output tile by loading tiles from the inpu
 
 ### 3: [1D Coarsened](./src/kernels/03_1D_coarsened.cuh)
 
-This kernel increases the work per thread. Each thread is now responsible for computing a `TM x 1` vertical slice of the output tile. This improves arithmetic intensity. The kernel also uses a 1D thread block and uses several mappings to map the threads to various 2D grids, e.g. to load values into the shared memory. The implementation details, parameter constraints, and indexing logic can be found in the source file.
+This kernel increases the work per thread. Each thread is now responsible for computing a `TM x 1` vertical slice of the output tile. This improves arithmetic intensity. The kernel also uses a 1D thread block and uses several mappings to map the threads to various 2D tiles, e.g. to load values into the shared memory. The implementation details, parameter constraints, and indexing logic can be found in the source file.
 
 ### 4: [2D Coarsened](./src/kernels/04_2D_coarsened.cuh)
 

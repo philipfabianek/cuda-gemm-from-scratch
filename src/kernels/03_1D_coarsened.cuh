@@ -17,23 +17,29 @@ __global__ void sgemm_1D_coarsened_kernel(int M, int N, int K, float alpha,
   C += blockIdx.y * BM * N + blockIdx.x * BN;
 
   // Compute initial thread indices inside the tiles,
+  // these are used only for loading data into smem,
   // this effectively created a 1D to 2D mapping from our 1D blocks
-  // to the 2D tiles, this is a 1-to-1 mapping for the A and B tiles
-  // (one thread loads one element into the shared memory) but inside
-  // the C tile one thread computes <TM> consecutive elements in one column
-  const int A_inner_col = threadIdx.x % BK;
-  const int A_inner_row = threadIdx.x / BK;
-  const int B_inner_col = threadIdx.x % BN;
-  const int B_inner_row = threadIdx.x / BN;
-  const int C_inner_col = B_inner_col;
-  const int C_inner_row = B_inner_row;
+  // to the 2D smem tiles, in this case this is a 1-to-1 mapping
+  // (one thread loads one element into the shared memory)
+  const int A_smem_col = threadIdx.x % BK;
+  const int A_smem_row = threadIdx.x / BK;
+  const int B_smem_col = threadIdx.x % BN;
+  const int B_smem_row = threadIdx.x / BN;
 
+  // Compute initial coordinates of every thread inside the C tile,
+  // these are initial because one thread computes a vertical strip
+  // (<TM> consecutive elements in one column)
+  const int C_inner_col = B_smem_col;
+  const int C_inner_row = B_smem_row;
+
+  // Each thread needs to store the sums for the full vertical strip
   float sums[TM] = {0.0};
 
   // Iterate over the necessary tiles from A and B to compute the output C tile
-  for (int i = 0; i < K; i += BK) {
-    A_tile[A_inner_row * BK + A_inner_col] = A[A_inner_row * K + A_inner_col];
-    B_tile[B_inner_row * BN + B_inner_col] = B[B_inner_row * N + B_inner_col];
+  for (int k_tile = 0; k_tile < K; k_tile += BK) {
+    // Load values from A and B into smem in a coalesced manner
+    A_tile[A_smem_row * BK + A_smem_col] = A[A_smem_row * K + A_smem_col];
+    B_tile[B_smem_row * BN + B_smem_col] = B[B_smem_row * N + B_smem_col];
 
     // Synchronize so that all tile values are loaded
     __syncthreads();
@@ -48,9 +54,10 @@ __global__ void sgemm_1D_coarsened_kernel(int M, int N, int K, float alpha,
       // A elements from multiple rows
       float B_val = B_tile[k * BN + C_inner_col];
 
-      // One thread works with <TM> consecutive rows from the A tile
-      for (int j = 0; j < TM; ++j) {
-        sums[j] += A_tile[(C_inner_row * TM + j) * BK + k] * B_val;
+      // One thread works with a vertical strip from the A tile
+      // (<TM> consecutive elements in one column)
+      for (int i = 0; i < TM; ++i) {
+        sums[i] += A_tile[(C_inner_row * TM + i) * BK + k] * B_val;
       }
     }
 
@@ -59,10 +66,10 @@ __global__ void sgemm_1D_coarsened_kernel(int M, int N, int K, float alpha,
     __syncthreads();
   }
 
-  // Each thread saves <TM> consecutive elements in one column of C
-  for (int j = 0; j < TM; ++j) {
-    C[(C_inner_row * TM + j) * N + C_inner_col] =
-        alpha * sums[j] + beta * C[(C_inner_row * TM + j) * N + C_inner_col];
+  // Each thread saves the full vertical strip
+  for (int i = 0; i < TM; ++i) {
+    C[(C_inner_row * TM + i) * N + C_inner_col] =
+        alpha * sums[i] + beta * C[(C_inner_row * TM + i) * N + C_inner_col];
   }
 }
 
@@ -80,11 +87,10 @@ void run_1D_coarsened_kernel(int M, int N, int K, float alpha, const float *d_A,
 
   // 2D output tiles
   dim3 gridDim((N + BN - 1) / BN, (M + BM - 1) / BM);
-  // 1D blocks, in such kernels it is better to create a manual 1D to 2D mapping
-  // because the smem A and B tiles have different dimensions and there
-  // is no longer a natural 2D to 2D mapping between threads in a block and the
-  // tiles, output tile has BM * BN elements but each thread computes TM
-  // elements so we need (BM * BN) / TM threads
+  // 1D blocks, in such kernels it is better to create manual 1D to 2D mappings
+  // because the kernels work with multiple 2D tiles (e.g. smem A and B tiles
+  // which have different dimensions), the output tile has BM * BN elements but
+  // each thread computes TM elements so we need (BM * BN) / TM threads
   dim3 blockDim((BM * BN) / TM);
 
   // The shared tiles have sizes BM * BK and BN * BK,

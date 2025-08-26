@@ -11,9 +11,9 @@ __global__ void sgemm_2D_coarsened_kernel(int M, int N, int K, float alpha,
   // so we compute how many rows we fully cover and use that
   // as the row stride when loading the values into smem
   // (we load both tiles in a coalesced manner)
-  int num_threads = BM * BN / (TM * TN);
-  int A_row_stride = num_threads / BK;
-  int B_row_stride = num_threads / BN;
+  const int num_threads = BM * BN / (TM * TN);
+  const int A_row_stride = num_threads / BK;
+  const int B_row_stride = num_threads / BN;
 
   // Move pointers to the beginning of the initial tiles
   A += blockIdx.y * BM * K;
