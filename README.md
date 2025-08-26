@@ -45,11 +45,12 @@ You can run a specific kernel by passing its ID as a command-line argument:
 
 Performance for a 2048x2048 matrix multiplication on an NVIDIA GeForce RTX 3070.
 
-| ID  | Kernel     |      GFLOPS | Performance vs. cuBLAS |
-| --- | :--------- | ----------: | :--------------------- |
-| 0   | **cuBLAS** | `~11,613.7` | 100.00%                |
-| 1   | **Naive**  |  `~1,343.8` | 11.6%                  |
-| 2   | **Tiled**  |  `~1,805.8` | 15.5%                  |
+| ID  | Kernel           |      GFLOPS | Performance vs. cuBLAS |
+| --- | :--------------- | ----------: | :--------------------- |
+| 0   | **cuBLAS**       | `~11,613.7` | 100.00%                |
+| 1   | **Naive**        |  `~1,343.8` | 11.6%                  |
+| 2   | **Tiled**        |  `~1,805.8` | 15.5%                  |
+| 3   | **1D Coarsened** |  `~5,865.9` | 50.5%                  |
 
 ## Kernel Explanations
 
@@ -64,6 +65,10 @@ Simple matrix multiplication kernel with coalesced memory access where each thra
 ### 2: [Tiled](./src/kernels/02_tiled.cuh)
 
 Each block in this kernel computes an output tile by loading tiles from the input matrices into shared memory and then performing the calculations using the loaded tiles. This reduces global memory usage. Global memory access is still coalesced for threads in a warp and each thread computes one output element.
+
+### 3: [1D Coarsened](./src/kernels/03_1D_coarsened.cuh)
+
+This kernel increases the work per thread. Each thread is now responsible for computing a `TM x 1` vertical slice of the output tile. This improves arithmetic intensity. The kernel also uses a 1D thread block and manually maps threads to a 2D grid of work. The implementation details, parameter constraints, and indexing logic can be found in the source file.
 
 ## License
 
