@@ -47,11 +47,12 @@ Performance for a 2048x2048 matrix multiplication on an NVIDIA GeForce RTX 3070.
 
 | ID  | Kernel           |      GFLOPS | Performance vs. cuBLAS |
 | --- | :--------------- | ----------: | :--------------------- |
-| 0   | **cuBLAS**       | `~11,613.7` | 100.00%                |
+| 0   | **cuBLAS**       | `~11,613.7` | 100.0%                 |
 | 1   | **Naive**        |  `~1,343.8` | 11.6%                  |
 | 2   | **Tiled**        |  `~1,805.8` | 15.5%                  |
 | 3   | **1D Coarsened** |  `~5,865.9` | 50.5%                  |
 | 4   | **2D Coarsened** | `~10,836.8` | 93.3%                  |
+| 5   | **Transposed**   | `~11,711.2` | 100.8%                 |
 
 ## Kernel Explanations
 
@@ -74,6 +75,10 @@ This kernel increases the work per thread. Each thread is now responsible for co
 ### 4: [2D Coarsened](./src/kernels/04_2D_coarsened.cuh)
 
 In this kernel, each thread computes a "minitile" of size `TM x TN`, which increases the work per thread and arithmetic intensity. Many more details can be found in the source file.
+
+### 5: [Transposed](./src/kernels/05_transposed.cuh)
+
+This kernel uses a transposed A tile to eliminate bank conflicts when loading values from shared memory into registers. Initially, this introduced bank conflicts when writing into the shared memory. These were resolved by making threads load and write chunks of 4 elements. Finally, explicit vectorization of all global memory reads and writes improved performance even more.
 
 ## License
 
