@@ -9,7 +9,8 @@ __global__ void comparison_kernel(const float *result, const float *reference,
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (idx < n_elements) {
-    if (fabs(result[idx] - reference[idx]) > VERIFICATION_TOLERANCE) {
+    float diff = result[idx] - reference[idx];
+    if (isnan(diff) || fabs(diff) > VERIFICATION_TOLERANCE) {
       atomicAdd(error_count, 1);
     }
   }
