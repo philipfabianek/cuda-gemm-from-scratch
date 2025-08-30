@@ -4,8 +4,21 @@ template <const int BM, const int BN, const int BK, const int TM, const int TN>
 __global__ void sgemm_2D_coarsened_kernel(int M, int N, int K, float alpha,
                                           const float *A, const float *B,
                                           float beta, float *C) {
+  // Move pointers to the beginning of the initial tiles
+  A += blockIdx.y * BM * K;
+  B += blockIdx.x * BN;
+  C += blockIdx.y * BM * N + blockIdx.x * BN;
+
+  // Define shared memory tiles
   __shared__ float A_tile[BM * BK];
   __shared__ float B_tile[BK * BN];
+
+  // Compute initial thread indices inside the tiles,
+  // these are used only for loading data into smem
+  const int A_smem_col = threadIdx.x % BK;
+  const int A_smem_row = threadIdx.x / BK;
+  const int B_smem_col = threadIdx.x % BN;
+  const int B_smem_row = threadIdx.x / BN;
 
   // There aren't enough threads to load the entire tile in one go,
   // so we compute how many rows we fully cover and use that
@@ -14,18 +27,6 @@ __global__ void sgemm_2D_coarsened_kernel(int M, int N, int K, float alpha,
   const int num_threads = BM * BN / (TM * TN);
   const int A_row_stride = num_threads / BK;
   const int B_row_stride = num_threads / BN;
-
-  // Move pointers to the beginning of the initial tiles
-  A += blockIdx.y * BM * K;
-  B += blockIdx.x * BN;
-  C += blockIdx.y * BM * N + blockIdx.x * BN;
-
-  // Compute initial thread indices inside the tiles,
-  // these are used only for loading data into smem
-  const int A_smem_col = threadIdx.x % BK;
-  const int A_smem_row = threadIdx.x / BK;
-  const int B_smem_col = threadIdx.x % BN;
-  const int B_smem_row = threadIdx.x / BN;
 
   // Compute initial coordinates of every thread inside the C tile,
   // (BN / TN) is the number of minitiles per row so by dividing by it

@@ -4,17 +4,17 @@ template <const int BM, const int BN, const int BK, const int TM>
 __global__ void sgemm_1D_coarsened_kernel(int M, int N, int K, float alpha,
                                           const float *A, const float *B,
                                           float beta, float *C) {
-  // I was previously using 2D vectors (same performance)
-  // but here I switched to 1D and explicit indexing for consistency
-  __shared__ float A_tile[BM * BK];
-  __shared__ float B_tile[BK * BN];
-
   // Move pointers to the beginning (top-left corner) of the initial tiles
   // (C stays the same, A and B will iteratively move by BK in their respective
   // directions)
   A += blockIdx.y * BM * K;
   B += blockIdx.x * BN;
   C += blockIdx.y * BM * N + blockIdx.x * BN;
+
+  // I was previously using 2D vectors (same performance)
+  // but here I switched to 1D and explicit indexing for consistency
+  __shared__ float A_tile[BM * BK];
+  __shared__ float B_tile[BK * BN];
 
   // Compute initial thread indices inside the tiles,
   // these are used only for loading data into smem,
