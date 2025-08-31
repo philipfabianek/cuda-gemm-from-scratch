@@ -20,9 +20,9 @@ __global__ void sgemm_transposed_kernel(int M, int N, int K, float alpha,
   const int B_smem_row = threadIdx.x / (BN / 4);
 
   // Multiply by 4 because of the adjusted loading
-  const int num_threads = BM * BN / (TM * TN);
-  const int A_row_stride = (num_threads * 4) / BK;
-  const int B_row_stride = (num_threads * 4) / BN;
+  constexpr int num_threads = BM * BN / (TM * TN);
+  constexpr int A_row_stride = (num_threads * 4) / BK;
+  constexpr int B_row_stride = (num_threads * 4) / BN;
 
   // Compute initial coordinates of every thread inside the C tile
   const int C_inner_col = (threadIdx.x % (BN / TN)) * TN;
