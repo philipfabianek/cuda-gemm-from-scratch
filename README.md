@@ -53,6 +53,7 @@ Performance for a 2048x2048 matrix multiplication on an NVIDIA GeForce RTX 3070.
 | 3   | **1D Coarsened** |  `~5,865.9` | 50.5%                  |
 | 4   | **2D Coarsened** | `~10,836.8` | 93.3%                  |
 | 5   | **Transposed**   | `~11,711.2` | 100.8%                 |
+| 6   | **Warptiling**   | `~12,621.1` | 108.7%                 |
 
 ## Kernel Explanations
 
@@ -79,6 +80,10 @@ In this kernel, each thread computes a "minitile" of size `TM x TN`, which incre
 ### 5: [Transposed](./src/kernels/05_transposed.cuh)
 
 This kernel uses a transposed A tile to eliminate bank conflicts when loading values from shared memory into registers. Initially, this introduced bank conflicts when writing into the shared memory. These were resolved by making threads load and write chunks of 4 elements. Finally, explicit vectorization of all global memory reads and writes improved performance even more.
+
+### 6: [Warptiling](./src/kernels/06_warptiling.cuh)
+
+In this kernel, one warp computes one "warptile" in several iterations, which adds another level of parallelism. After adjusting the parameters, this change further improves the performance. A lot more details can be found in the source file.
 
 ## License
 
