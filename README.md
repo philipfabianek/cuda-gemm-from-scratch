@@ -2,7 +2,7 @@
 
 This repository contains several implementations of a (single-precision general) matrix multiplication (SGEMM) kernel in CUDA. It starts with a slow naive kernel and applies several optimizations to approach and surpass (at least on my GPU) the performance of NVIDIA's cuBLAS library.
 
-The project is heavily inspired by the article [CUDA Matrix Multiply](https://siboehm.com/articles/22/CUDA-MMM). Compared to the blog post, I focused more on [analysis-driven optimizations](https://developer.nvidia.com/blog/analysis-driven-optimization-preparing-for-analysis-with-nvidia-nsight-compute-part-1/) and profiling with Nsight Compute.
+The project is heavily inspired by [this blog post](https://siboehm.com/articles/22/CUDA-MMM) written by [Simon Boehm](https://siboehm.com/). Compared to the blog post, I focused more on [analysis-driven optimizations](https://developer.nvidia.com/blog/analysis-driven-optimization-preparing-for-analysis-with-nvidia-nsight-compute-part-1/) and profiling with Nsight Compute.
 
 ## Building the Project
 
