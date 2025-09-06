@@ -109,6 +109,10 @@ Compared to the previous kernel, performance increases by another ~8%, which is 
 
 ![No bank conflicts](./profiling/06_no_bank_conflicts.png)
 
+This image displays the roofline model with the cuBLAS kernel and all 6 custom kernels:
+
+![Roofline model](./profiling/combined_roofline.png)
+
 ## License
 
 This project is licensed under the MIT License.
