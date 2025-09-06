@@ -71,7 +71,7 @@ The kernel suffers from high global memory usage. By profiling in Nsight Compute
 
 In this kernel, we reduce global memory usage by utilizing shared memory. Each block in this kernel computes an output tile by loading tiles from the input matrices into shared memory and then performing the calculations using the loaded tiles. Global memory access is still coalesced for threads in a warp and each thread computes one output element.
 
-Compared to the previous kernel, performance increases by ~33%. Using tiled algorithms can traditionally lead to even larger performance gains, however, the previous kernel had an extremely high L1 cache utilization of close to 90%. More performance gains can be found by increasing arithmetic intensity since the kernel is memory bound.
+Compared to the previous kernel, performance increases by ~33%. Using tiled algorithms can traditionally lead to even larger performance gains, however, the previous kernel had a high L1 cache hit rate of close to 90%. More performance gains can be found by increasing arithmetic intensity since the kernel is memory bound.
 
 ![Roofline model](./profiling/02_roofline.png)
 
