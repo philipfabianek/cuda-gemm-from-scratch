@@ -12,7 +12,12 @@
 
 template <typename T>
 void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
-                float alpha, T *d_A, T *d_B, float beta, T *d_C) {}
+                float alpha, T *d_A, T *d_B, float beta, T *d_C) {
+  // By adding a dependence on T using a condition that
+  // is always false, we can check that this is never instantiated.
+  static_assert(sizeof(T) == 0,
+                "run_kernel is not specialized for this data type");
+}
 
 // fp32 specialization
 template <>
