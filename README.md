@@ -1,8 +1,16 @@
-# CUDA SGEMM From Scratch
+# CUDA GEMM From Scratch
 
-This repository contains several implementations of a (single-precision general) matrix multiplication (SGEMM) kernel in CUDA. It starts with a slow naive kernel and applies several optimizations to approach and surpass (at least on my GPU) the performance of NVIDIA's cuBLAS library.
+This repository contains several implementations of a general matrix multiplication (GEMM) kernel in CUDA, supporting both single-precision (FP32) and bfloat16 (BF16) operations.
+It starts with a slow naive kernel and applies several optimizations to approach and surpass (at least on my GPU) the performance of NVIDIA's cuBLAS library.
 
 The project is heavily inspired by [this blog post](https://siboehm.com/articles/22/CUDA-MMM) written by [Simon Boehm](https://siboehm.com/). Compared to the blog post, I focused more on [analysis-driven optimizations](https://developer.nvidia.com/blog/analysis-driven-optimization-preparing-for-analysis-with-nvidia-nsight-compute-part-1/) and profiling with Nsight Compute.
+
+## Hardware Requirements
+
+This project supports bfloat16 precision to leverage tensor cores.
+This requires a compatible GPU with compute capability 8.0 or higher.
+The code will check your GPU at runtime and produce an error if you attempt to use `--precision bf16` on incompatible hardware.
+All fp32 kernels should run on older architectures.
 
 ## Building the Project
 
@@ -25,23 +33,23 @@ cmake ..
 make -j
 ```
 
-This will compile the project. The executable `sgemm_runner` will be located in the `build/` directory.
+This will compile the project. The executable `gemm_runner` will be located in the `build/` directory.
 
 ### 3. Running a Kernel
 
 You can run a specific kernel by passing its ID as a command-line argument:
 
 ```bash
-# Run the naive kernel (ID 1)
-./build/sgemm_runner --kernel 1
+# Run the naive FP32 kernel (ID 1)
+./build/gemm_runner --kernel 1 --precision fp32
 
-# Run with a different size and number of repeats
-./build/sgemm_runner --kernel 1 --size 2048 --repeats 50
+# Run the BF16 cuBLAS kernel (ID 0)
+./build/gemm_runner --kernel 0 --precision bf16 --size 2048 --repeats 1000
 ```
 
-## Performance Overview
+## FP32 Performance Overview
 
-Performance for a 2048x2048 matrix multiplication on an NVIDIA GeForce RTX 3070.
+Performance for a 2048x2048 FP32 matrix multiplication on an NVIDIA GeForce RTX 3070.
 
 | ID  | Kernel           |      GFLOPS | Performance vs. cuBLAS |
 | --- | :--------------- | ----------: | :--------------------- |
