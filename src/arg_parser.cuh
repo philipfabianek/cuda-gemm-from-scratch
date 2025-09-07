@@ -6,9 +6,16 @@
 
 class ArgParser {
 public:
-  ArgParser(int argc, char **argv);
+  ArgParser(int argc, char **argv) {
+    for (int i = 1; i < argc; ++i) {
+      this->args_.push_back(std::string(argv[i]));
+    }
+  }
 
-  bool cmd_option_exists(const std::string &option) const;
+  bool cmd_option_exists(const std::string &option) const {
+    return std::find(this->args_.begin(), this->args_.end(), option) !=
+           this->args_.end();
+  }
 
   template <typename T>
   T get_cmd_option(const std::string &option, T default_value) const {

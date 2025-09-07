@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(CudaSgemmFromScratch LANGUAGES CXX CUDA)
+project(CudaGemmFromScratch LANGUAGES CXX CUDA)
 
 find_package(CUDA REQUIRED)
 
@@ -14,7 +14,7 @@ set(CUDA_COMPUTE_CAPABILITY 86)
 
 # --- Executables ---
 
-add_executable(sgemm_runner src/main.cu src/utils.cu src/arg_parser.cu)
-target_link_libraries(sgemm_runner ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
-set_target_properties(sgemm_runner PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
-target_compile_options(sgemm_runner PRIVATE --generate-line-info)
+add_executable(gemm_runner src/main.cu)
+target_link_libraries(gemm_runner ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
+set_target_properties(gemm_runner PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
+target_compile_options(gemm_runner PRIVATE --generate-line-info)
