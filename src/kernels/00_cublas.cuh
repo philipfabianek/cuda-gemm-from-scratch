@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cublas_v2.h>
-#include <cuda_bf16.h>
+
+#include "types.cuh"
 
 template <typename T>
 void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
@@ -30,7 +31,7 @@ void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
     // for fp32 based on the hardware and input sizes.
     algo = CUBLAS_GEMM_DEFAULT;
 
-  } else if constexpr (std::is_same_v<T, __nv_bfloat16>) {
+  } else if constexpr (std::is_same_v<T, bf16>) {
     // bf16 matrices
     matrix_type = CUDA_R_16BF;
     // Compute type is still fp32 for mixed precision!

@@ -1,10 +1,9 @@
 #include <cstdio>
 #include <vector>
 
-#include <cuda_bf16.h>
-
 #include "arg_parser.cuh"
 #include "benchmark_runner.cuh"
+#include "types.cuh"
 
 int main(int argc, char **argv) {
   ArgParser parser(argc, argv);
@@ -28,7 +27,7 @@ int main(int argc, char **argv) {
 
   // Load CLI arguments
   int kernel_id = parser.get_cmd_option<int>("--kernel", 1);
-  int size = parser.get_cmd_option<int>("--size", 1024);
+  int size = parser.get_cmd_option<int>("--size", 2048);
   int repeats = parser.get_cmd_option<int>("--repeats", 100);
   std::string precision =
       parser.get_cmd_option<std::string>("--precision", "fp32");
@@ -74,7 +73,8 @@ int main(int argc, char **argv) {
   } else if (precision == "bf16") {
     switch (kernel_id) {
     case 0:
-      run_and_benchmark<__nv_bfloat16>(kernel_id, size, repeats, handle);
+    case 7:
+      run_and_benchmark<bf16>(kernel_id, size, repeats, handle);
       break;
     default:
       fprintf(stderr, "Error: Kernel ID %d does not support bf16 precision.\n",

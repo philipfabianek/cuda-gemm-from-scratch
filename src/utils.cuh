@@ -4,9 +4,8 @@
 #include <random>
 #include <vector>
 
-#include <cuda_bf16.h>
-
 #include "kernels/verify.cuh"
+#include "types.cuh"
 
 #define CUDA_CHECK(err)                                                        \
   {                                                                            \
@@ -25,7 +24,7 @@ void initialize_matrix(std::vector<T> &matrix, int rows, int cols) {
   for (int i = 0; i < rows * cols; ++i) {
     if constexpr (std::is_same_v<T, float>) {
       matrix[i] = distribution(generator);
-    } else if constexpr (std::is_same_v<T, __nv_bfloat16>) {
+    } else if constexpr (std::is_same_v<T, bf16>) {
       matrix[i] = __float2bfloat16(distribution(generator));
     }
   }

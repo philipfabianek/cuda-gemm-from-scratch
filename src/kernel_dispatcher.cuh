@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_bf16.h>
-
 #include "kernels/00_cublas.cuh"
 #include "kernels/01_naive.cuh"
 #include "kernels/02_tiled.cuh"
@@ -9,6 +7,8 @@
 #include "kernels/04_2D_coarsened.cuh"
 #include "kernels/05_transposed.cuh"
 #include "kernels/06_warptiling.cuh"
+#include "kernels/07_naive_wmma.cuh"
+#include "types.cuh"
 
 template <typename T>
 void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
@@ -51,13 +51,15 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
 
 // bf16 specialization
 template <>
-void run_kernel<__nv_bfloat16>(int kernel_id, cublasHandle_t handle, int M,
-                               int N, int K, float alpha, __nv_bfloat16 *d_A,
-                               __nv_bfloat16 *d_B, float beta,
-                               __nv_bfloat16 *d_C) {
+void run_kernel<bf16>(int kernel_id, cublasHandle_t handle, int M, int N, int K,
+                      float alpha, bf16 *d_A, bf16 *d_B, float beta,
+                      bf16 *d_C) {
   switch (kernel_id) {
   case 0:
     run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C);
+    break;
+  case 7:
+    run_naive_wmma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   }
   // No default needed, main() validates the kernel_id

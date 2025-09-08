@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include <cuda_bf16.h>
+#include "types.cuh"
 
 template <typename T>
 __global__ void comparison_kernel(const T *result, const T *reference,
@@ -18,10 +18,10 @@ __global__ void comparison_kernel(const T *result, const T *reference,
       val_result = result[idx];
       val_reference = reference[idx];
       tolerance = 1e-3f;
-    } else if constexpr (std::is_same_v<T, __nv_bfloat16>) {
+    } else if constexpr (std::is_same_v<T, bf16>) {
       val_result = __bfloat162float(result[idx]);
       val_reference = __bfloat162float(reference[idx]);
-      tolerance = 1e-2f;
+      tolerance = 1e-3f;
     }
 
     float diff = val_result - val_reference;
