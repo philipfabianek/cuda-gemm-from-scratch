@@ -40,11 +40,14 @@ This will compile the project. The executable `gemm_runner` will be located in t
 You can run a specific kernel by passing its ID as a command-line argument:
 
 ```bash
-# Run the naive FP32 kernel (ID 1)
-./build/gemm_runner --kernel 1 --precision fp32
+# Run the warptiling FP32 kernel (ID 1)
+./build/gemm_runner --kernel 6 --precision fp32 --repeats 1000
 
 # Run the BF16 cuBLAS kernel (ID 0)
-./build/gemm_runner --kernel 0 --precision bf16 --size 2048 --repeats 1000
+./build/gemm_runner --kernel 0 --precision bf16 --repeats 1000
+
+# Run the naive WMMA BF16 kernel (ID 7)
+./build/gemm_runner --kernel 7 --precision bf16 --repeats 1000
 ```
 
 ## FP32 Performance Overview
@@ -60,6 +63,15 @@ Performance for a 2048x2048 FP32 matrix multiplication on an NVIDIA GeForce RTX 
 | 4   | **2D Coarsened** | `~10,836.8` | 93.3%                  |
 | 5   | **Transposed**   | `~11,711.2` | 100.8%                 |
 | 6   | **Warptiling**   | `~12,621.1` | 108.7%                 |
+
+## BF16 Performance Overview
+
+Performance for a 2048x2048 BF16 matrix multiplication on an NVIDIA GeForce RTX 3070.
+
+| ID  | Kernel         |      GFLOPS | Performance vs. cuBLAS |
+| --- | :------------- | ----------: | :--------------------- |
+| 0   | **cuBLAS**     | `~39,071.4` | 100.0%                 |
+| 7   | **Naive WMMA** |  `~9,941.5` | 25.4%                  |
 
 ## Kernel Explanations
 
@@ -120,6 +132,10 @@ Compared to the previous kernel, performance increases by another ~8%, which is 
 This image displays the roofline model with the cuBLAS kernel and all 6 custom kernels:
 
 ![Roofline model](./profiling/combined_roofline.png)
+
+### 7: [Naive WMMA](./src/kernels/07_naive_wmma.cuh)
+
+This is the first custom kernel which uses tensor cores and mixed precision (BF16). It is programmed using the WMMA (warp matrix multiply accumulate) API. In this kernel, blocks consist of 1 warp and each warp computes a `16 x 16` tile of the output matrix. Despite the simple implenetation, it achieves almost 10 TFLOPS, a significant speedup over the naive FP32 kernel and approaches both the FP32 cuBLAS and warptiling kernels.
 
 ## License
 
