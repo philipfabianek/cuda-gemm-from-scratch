@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
            "--kernel <id>"
            " [--size N]"
            " [--repeats N]"
-           " [--precision <fp32|bf16>]\n",
+           " [--precision <fp32|fp16>]\n",
            argv[0]);
     return 0;
   }
@@ -32,8 +32,8 @@ int main(int argc, char **argv) {
   std::string precision =
       parser.get_cmd_option<std::string>("--precision", "fp32");
 
-  if (precision != "fp32" && precision != "bf16") {
-    fprintf(stderr, "Error: Invalid precision, choose 'fp32' or 'bf16'\n");
+  if (precision != "fp32" && precision != "fp16") {
+    fprintf(stderr, "Error: Invalid precision, choose 'fp32' or 'fp16'\n");
     exit(EXIT_FAILURE);
   }
 
@@ -41,10 +41,10 @@ int main(int argc, char **argv) {
   cudaDeviceProp props;
   cudaGetDeviceProperties(&props, 0);
 
-  // Check if bf16 is supported
-  if (precision == "bf16" && props.major < 8) {
+  // Check if fp16 is supported
+  if (precision == "fp16" && props.major < 8) {
     fprintf(stderr,
-            "Error: bfloat16 precision requires a GPU with Compute Capability "
+            "Error: fp16 precision requires a GPU with Compute Capability "
             "8.0 or higher\n");
     exit(EXIT_FAILURE);
   }
@@ -70,14 +70,14 @@ int main(int argc, char **argv) {
       cublasDestroy(handle);
       exit(EXIT_FAILURE);
     }
-  } else if (precision == "bf16") {
+  } else if (precision == "fp16") {
     switch (kernel_id) {
     case 0:
     case 7:
-      run_and_benchmark<bf16>(kernel_id, size, repeats, handle);
+      run_and_benchmark<half>(kernel_id, size, repeats, handle);
       break;
     default:
-      fprintf(stderr, "Error: Kernel ID %d does not support bf16 precision.\n",
+      fprintf(stderr, "Error: Kernel ID %d does not support fp16 precision.\n",
               kernel_id);
       cublasDestroy(handle);
       exit(EXIT_FAILURE);

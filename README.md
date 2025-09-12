@@ -1,15 +1,15 @@
 # CUDA GEMM From Scratch
 
-This repository contains several implementations of a general matrix multiplication (GEMM) kernel in CUDA, supporting both single-precision (FP32) and bfloat16 (BF16) operations.
+This repository contains several implementations of a general matrix multiplication (GEMM) kernel in CUDA, supporting both single-precision (FP32) and half-precision (FP16) operations.
 It starts with a slow naive kernel and applies several optimizations to approach and surpass (at least on my GPU) the performance of NVIDIA's cuBLAS library.
 
 The project is heavily inspired by [this blog post](https://siboehm.com/articles/22/CUDA-MMM) written by [Simon Boehm](https://siboehm.com/). Compared to the blog post, I focused more on [analysis-driven optimizations](https://developer.nvidia.com/blog/analysis-driven-optimization-preparing-for-analysis-with-nvidia-nsight-compute-part-1/) and profiling with Nsight Compute.
 
 ## Hardware Requirements
 
-This project supports bfloat16 precision to leverage tensor cores.
+This project supports mixed precision to leverage tensor cores.
 This requires a compatible GPU with compute capability 8.0 or higher.
-The code will check your GPU at runtime and produce an error if you attempt to use `--precision bf16` on incompatible hardware.
+The code will check your GPU at runtime and produce an error if you attempt to use `--precision fp16` on incompatible hardware.
 All fp32 kernels should run on older architectures.
 
 ## Building the Project
@@ -43,11 +43,11 @@ You can run a specific kernel by passing its ID as a command-line argument:
 # Run the warptiling FP32 kernel (ID 1)
 ./build/gemm_runner --kernel 6 --precision fp32 --repeats 1000
 
-# Run the BF16 cuBLAS kernel (ID 0)
-./build/gemm_runner --kernel 0 --precision bf16 --repeats 1000
+# Run the FP16 cuBLAS kernel (ID 0)
+./build/gemm_runner --kernel 0 --precision fp16 --repeats 1000
 
-# Run the naive WMMA BF16 kernel (ID 7)
-./build/gemm_runner --kernel 7 --precision bf16 --repeats 1000
+# Run the naive WMMA FP16 kernel (ID 7)
+./build/gemm_runner --kernel 7 --precision fp16 --repeats 1000
 ```
 
 ## FP32 Performance Overview
@@ -64,9 +64,9 @@ Performance for a 2048x2048 FP32 matrix multiplication on an NVIDIA GeForce RTX 
 | 5   | **Transposed**   | `~11,711.2` | 100.8%                 |
 | 6   | **Warptiling**   | `~12,621.1` | 108.7%                 |
 
-## BF16 Performance Overview
+## FP16 Performance Overview
 
-Performance for a 2048x2048 BF16 matrix multiplication on an NVIDIA GeForce RTX 3070.
+Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 3070.
 
 | ID  | Kernel         |      GFLOPS | Performance vs. cuBLAS |
 | --- | :------------- | ----------: | :--------------------- |
@@ -135,7 +135,7 @@ This image displays the roofline model with the cuBLAS kernel and all 6 custom k
 
 ### 7: [Naive WMMA](./src/kernels/07_naive_wmma.cuh)
 
-This is the first custom kernel which uses tensor cores and mixed precision (BF16). It is programmed using the WMMA (warp matrix multiply accumulate) API. In this kernel, blocks consist of 1 warp and each warp computes a `16 x 16` tile of the output matrix. Despite the simple implenetation, it achieves almost 10 TFLOPS, a significant speedup over the naive FP32 kernel and approaches both the FP32 cuBLAS and warptiling kernels.
+This is the first custom kernel which uses tensor cores and mixed precision (FP16 + FP32). It is programmed using the WMMA (warp matrix multiply accumulate) API. In this kernel, blocks consist of 1 warp and each warp computes a `16 x 16` tile of the output matrix. Despite the simple implenetation, it achieves almost 10 TFLOPS, a significant speedup over the naive FP32 kernel and approaches both the FP32 cuBLAS and warptiling kernels.
 
 ## License
 

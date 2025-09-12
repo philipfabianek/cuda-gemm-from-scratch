@@ -18,9 +18,9 @@ __global__ void comparison_kernel(const T *result, const T *reference,
       val_result = result[idx];
       val_reference = reference[idx];
       tolerance = 1e-3f;
-    } else if constexpr (std::is_same_v<T, bf16>) {
-      val_result = __bfloat162float(result[idx]);
-      val_reference = __bfloat162float(reference[idx]);
+    } else if constexpr (std::is_same_v<T, half>) {
+      val_result = __half2float(result[idx]);
+      val_reference = __half2float(reference[idx]);
       tolerance = 1e-3f;
     }
 

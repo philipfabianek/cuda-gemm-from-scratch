@@ -49,11 +49,11 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
   // No default needed, main() validates the kernel_id
 }
 
-// bf16 specialization
+// fp16 specialization
 template <>
-void run_kernel<bf16>(int kernel_id, cublasHandle_t handle, int M, int N, int K,
-                      float alpha, bf16 *d_A, bf16 *d_B, float beta,
-                      bf16 *d_C) {
+void run_kernel<half>(int kernel_id, cublasHandle_t handle, int M, int N, int K,
+                      float alpha, half *d_A, half *d_B, float beta,
+                      half *d_C) {
   switch (kernel_id) {
   case 0:
     run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C);

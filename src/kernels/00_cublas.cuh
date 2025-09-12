@@ -31,13 +31,13 @@ void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
     // for fp32 based on the hardware and input sizes.
     algo = CUBLAS_GEMM_DEFAULT;
 
-  } else if constexpr (std::is_same_v<T, bf16>) {
-    // bf16 matrices
-    matrix_type = CUDA_R_16BF;
+  } else if constexpr (std::is_same_v<T, half>) {
+    // fp16 matrices
+    matrix_type = CUDA_R_16F;
     // Compute type is still fp32 for mixed precision!
     compute_type = CUBLAS_COMPUTE_32F;
     // This means cuBLAS will choose the most suitable algorithm
-    // for bf16 based on the hardware and input sizes.
+    // for fp16 based on the hardware and input sizes.
     algo = CUBLAS_GEMM_DEFAULT_TENSOR_OP;
   }
 
