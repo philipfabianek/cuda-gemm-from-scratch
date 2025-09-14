@@ -24,7 +24,7 @@ This repository uses CMake to build the main runner executable.
 
 ### 2. Build Steps
 
-Before building, adjust `CUDA_COMPUTE_CAPABILITY` in CMakeLists to fit your GPU. Then, from the root of the repository, run the following commands:
+Before building, adjust `CMAKE_CUDA_ARCHITECTURES` in [`CMakeLists.txt`](./CMakeLists.txt) to fit your GPU. Then, from the root of the repository, run the following commands:
 
 ```bash
 mkdir build
