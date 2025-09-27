@@ -8,14 +8,16 @@
 #include "kernels/05_transposed.cuh"
 #include "kernels/06_warptiling.cuh"
 #include "kernels/07_naive_wmma.cuh"
+#include "kernels/09_fp16_warptiling.cuh"
 #include "types.cuh"
 
-template <typename T>
+template <typename InputType, typename AccumType>
 void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
-                float alpha, T *d_A, T *d_B, float beta, T *d_C) {
-  // By adding a dependence on T using a condition that
+                float alpha, InputType *d_A, InputType *d_B, float beta,
+                AccumType *d_C) {
+  // By adding a dependence on InputType using a condition that
   // is always false, we can check that this is never instantiated.
-  static_assert(sizeof(T) == 0,
+  static_assert(sizeof(InputType) == 0,
                 "run_kernel is not specialized for this data type");
 }
 
@@ -25,7 +27,8 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
                 float alpha, float *d_A, float *d_B, float beta, float *d_C) {
   switch (kernel_id) {
   case 0:
-    run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C);
+    run_cublas_kernel<float, float>(handle, M, N, K, alpha, d_A, d_B, beta,
+                                    d_C);
     break;
   case 1:
     run_naive_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
@@ -51,12 +54,11 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
 
 // fp16 specialization
 template <>
-void run_kernel<half>(int kernel_id, cublasHandle_t handle, int M, int N, int K,
-                      float alpha, half *d_A, half *d_B, float beta,
-                      half *d_C) {
+void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
+                float alpha, half *d_A, half *d_B, float beta, float *d_C) {
   switch (kernel_id) {
   case 0:
-    run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C);
+    run_cublas_kernel<half, float>(handle, M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 7:
     run_naive_wmma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);

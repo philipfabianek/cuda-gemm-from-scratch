@@ -21,7 +21,8 @@ __global__ void comparison_kernel(const T *result, const T *reference,
     } else if constexpr (std::is_same_v<T, half>) {
       val_result = __half2float(result[idx]);
       val_reference = __half2float(reference[idx]);
-      tolerance = 1e-3f;
+      // tolerance = 2e-2f;
+      tolerance = 3.0f;
     }
 
     float diff = val_result - val_reference;

@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     case 4:
     case 5:
     case 6:
-      run_and_benchmark<float>(kernel_id, size, repeats, handle);
+      run_and_benchmark<float, float>(kernel_id, size, repeats, handle);
       break;
     default:
       fprintf(stderr, "Error: Kernel ID %d is not valid for fp32 precision.\n",
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
     switch (kernel_id) {
     case 0:
     case 7:
-      run_and_benchmark<half>(kernel_id, size, repeats, handle);
+      run_and_benchmark<half, float>(kernel_id, size, repeats, handle);
       break;
     default:
       fprintf(stderr, "Error: Kernel ID %d does not support fp16 precision.\n",

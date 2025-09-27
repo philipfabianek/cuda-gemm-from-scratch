@@ -5,26 +5,27 @@
 #include "kernel_dispatcher.cuh"
 #include "utils.cuh"
 
-template <typename T>
+template <typename InputType, typename AccumType>
 void run_warmup_and_verify(int kernel_id, cublasHandle_t handle, int M, int N,
-                           int K, float alpha, T *d_A, T *d_B, float beta,
-                           T *d_C) {
-  size_t c_size = (size_t)M * N * sizeof(T);
+                           int K, float alpha, InputType *d_A, InputType *d_B,
+                           float beta, AccumType *d_C) {
+  size_t c_size = (size_t)M * N * sizeof(AccumType);
 
   // Store initial C matrix to reset after each run
-  T *d_C_initial;
+  AccumType *d_C_initial;
   CUDA_CHECK(cudaMalloc(&d_C_initial, c_size));
   CUDA_CHECK(cudaMemcpy(d_C_initial, d_C, c_size, cudaMemcpyDeviceToDevice));
 
   // Generate cuBLAS reference result
-  T *d_C_reference;
+  AccumType *d_C_reference;
   CUDA_CHECK(cudaMalloc(&d_C_reference, c_size));
   CUDA_CHECK(
       cudaMemcpy(d_C_reference, d_C_initial, c_size, cudaMemcpyDeviceToDevice));
   run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C_reference);
 
   // Warm-up run, check for errors, verify results and reset d_C afterwards
-  run_kernel<T>(kernel_id, handle, M, N, K, alpha, d_A, d_B, beta, d_C);
+  run_kernel<InputType, AccumType>(kernel_id, handle, M, N, K, alpha, d_A, d_B,
+                                   beta, d_C);
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());
   verify_with_cublas_reference(M, N, d_C, d_C_reference);
@@ -35,7 +36,7 @@ void run_warmup_and_verify(int kernel_id, cublasHandle_t handle, int M, int N,
   CUDA_CHECK(cudaFree(d_C_reference));
 }
 
-template <typename T>
+template <typename InputType, typename AccumType>
 void run_and_benchmark(int kernel_id, int size, int repeats,
                        cublasHandle_t handle) {
   // Benchmark configuration
@@ -46,19 +47,20 @@ void run_and_benchmark(int kernel_id, int size, int repeats,
   float beta = 0.5f;
 
   // Prepare host matrices
-  std::vector<T> h_A(M * K);
-  std::vector<T> h_B(K * N);
-  std::vector<T> h_C(M * N);
+  std::vector<InputType> h_A(M * K);
+  std::vector<InputType> h_B(K * N);
+  std::vector<AccumType> h_C(M * N);
 
   initialize_matrix(h_A, M, K);
   initialize_matrix(h_B, K, N);
   initialize_matrix(h_C, M, N);
 
   // Prepare device variables
-  T *d_A, *d_B, *d_C;
-  size_t a_size = h_A.size() * sizeof(T);
-  size_t b_size = h_B.size() * sizeof(T);
-  size_t c_size = h_C.size() * sizeof(T);
+  InputType *d_A, *d_B;
+  AccumType *d_C;
+  size_t a_size = h_A.size() * sizeof(InputType);
+  size_t b_size = h_B.size() * sizeof(InputType);
+  size_t c_size = h_C.size() * sizeof(AccumType);
 
   CUDA_CHECK(cudaMalloc(&d_A, a_size));
   CUDA_CHECK(cudaMalloc(&d_B, b_size));
@@ -79,7 +81,8 @@ void run_and_benchmark(int kernel_id, int size, int repeats,
 
   // Execute the kernel, no need to check errors here
   for (int i = 0; i < repeats; ++i) {
-    run_kernel(kernel_id, handle, M, N, K, alpha, d_A, d_B, beta, d_C);
+    run_kernel<InputType, AccumType>(kernel_id, handle, M, N, K, alpha, d_A,
+                                     d_B, beta, d_C);
   }
 
   // Record the end time and synchronize

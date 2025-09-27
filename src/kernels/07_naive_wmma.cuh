@@ -10,7 +10,7 @@ template <const int WARPSIZE, const int WMMA_M, const int WMMA_N,
           const int WMMA_K>
 __global__ void gemm_naive_wmma_kernel(int M, int N, int K, float alpha,
                                        const half *d_A, const half *d_B,
-                                       float beta, half *d_C) {
+                                       float beta, float *d_C) {
   const int lda = K;
   const int ldb = N;
   const int ldc = N;
@@ -43,19 +43,22 @@ __global__ void gemm_naive_wmma_kernel(int M, int N, int K, float alpha,
   }
 
   // Compute pointer to the relevant output tile
-  half *C_ptr = d_C + tile_row * ldc + tile_col;
+  float *C_ptr = d_C + tile_row * ldc + tile_col;
 
-  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> c_final_frag;
-  wmma::load_matrix_sync(c_final_frag, C_ptr, ldc, wmma::mem_row_major);
-  for (int i = 0; i < c_final_frag.num_elements; i++) {
-    c_final_frag.x[i] = __float2half(alpha * acc_frag.x[i] +
-                                     beta * __half2float(c_final_frag.x[i]));
+  // Load the output
+  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> c_frag;
+  wmma::load_matrix_sync(c_frag, C_ptr, ldc, wmma::mem_row_major);
+
+  // Epilogue
+  for (int i = 0; i < c_frag.num_elements; i++) {
+    c_frag.x[i] = alpha * acc_frag.x[i] + beta * c_frag.x[i];
   }
-  wmma::store_matrix_sync(C_ptr, c_final_frag, N, wmma::mem_row_major);
+
+  wmma::store_matrix_sync(C_ptr, c_frag, ldc, wmma::mem_row_major);
 }
 
 void run_naive_wmma_kernel(int M, int N, int K, float alpha, const half *d_A,
-                           const half *d_B, float beta, half *d_C) {
+                           const half *d_B, float beta, float *d_C) {
   const int WARPSIZE = 32;
 
   // One warp per block

@@ -4,9 +4,10 @@
 
 #include "types.cuh"
 
-template <typename T>
+template <typename InputType, typename AccumType>
 void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
-                       const T *d_A, const T *d_B, float beta, T *d_C) {
+                       const InputType *d_A, const InputType *d_B, float beta,
+                       AccumType *d_C) {
   // cuBLAS uses column-major order, we can use that
   // C_rowmajor = alpha * A_rowmajor * B_rowmajor + beta * C_rowmajor
   // is equivalent to
@@ -18,22 +19,24 @@ void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
 
   // Since we are using the general cublasGemmEx function,
   // we need to specify the data types, the compute type and the algorithm.
-  cudaDataType_t matrix_type;
+  cudaDataType_t input_type, output_type;
   cublasComputeType_t compute_type;
   cublasGemmAlgo_t algo;
 
-  if constexpr (std::is_same_v<T, float>) {
+  if constexpr (std::is_same_v<InputType, float>) {
     // fp32 matrices
-    matrix_type = CUDA_R_32F;
+    input_type = CUDA_R_16F;
+    output_type = CUDA_R_32F;
     // fp32 compute type
     compute_type = CUBLAS_COMPUTE_32F;
     // This means cuBLAS will choose the most suitable algorithm
     // for fp32 based on the hardware and input sizes.
     algo = CUBLAS_GEMM_DEFAULT;
 
-  } else if constexpr (std::is_same_v<T, half>) {
-    // fp16 matrices
-    matrix_type = CUDA_R_16F;
+  } else if constexpr (std::is_same_v<InputType, half>) {
+    // fp16 input matrices and fp32 output matrix
+    input_type = CUDA_R_16F;
+    output_type = CUDA_R_32F;
     // Compute type is still fp32 for mixed precision!
     compute_type = CUBLAS_COMPUTE_32F;
     // This means cuBLAS will choose the most suitable algorithm
@@ -48,7 +51,7 @@ void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
   int ldb = N; // B is K x N -> transpose is N x K -> leading dimension is N
   int ldc = N; // C is M x N -> transpose is N x M -> leading dimension is N
 
-  cublasGemmEx(handle, trans, trans, N, M, K, &alpha, d_B, matrix_type, ldb,
-               d_A, matrix_type, lda, &beta, d_C, matrix_type, ldc,
-               compute_type, algo);
+  cublasGemmEx(handle, trans, trans, N, M, K, &alpha, d_B, input_type, ldb, d_A,
+               input_type, lda, &beta, d_C, output_type, ldc, compute_type,
+               algo);
 }
