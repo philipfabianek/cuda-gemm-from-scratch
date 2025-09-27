@@ -8,7 +8,6 @@
 #include "kernels/05_transposed.cuh"
 #include "kernels/06_warptiling.cuh"
 #include "kernels/07_naive_wmma.cuh"
-#include "kernels/09_fp16_warptiling.cuh"
 #include "types.cuh"
 
 template <typename InputType, typename AccumType>
