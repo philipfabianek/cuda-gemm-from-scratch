@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
       run_and_benchmark<float, float>(kernel_id, size, repeats, handle);
       break;
     default:
-      fprintf(stderr, "Error: Kernel ID %d is not valid for fp32 precision.\n",
+      fprintf(stderr, "Error: Kernel ID %d does not support fp32 precision.\n",
               kernel_id);
       cublasDestroy(handle);
       exit(EXIT_FAILURE);

@@ -25,7 +25,7 @@ void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
 
   if constexpr (std::is_same_v<InputType, float>) {
     // fp32 matrices
-    input_type = CUDA_R_16F;
+    input_type = CUDA_R_32F;
     output_type = CUDA_R_32F;
     // fp32 compute type
     compute_type = CUBLAS_COMPUTE_32F;
