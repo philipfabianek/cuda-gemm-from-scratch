@@ -68,11 +68,12 @@ Performance for a 2048x2048 FP32 matrix multiplication on an NVIDIA GeForce RTX 
 
 Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 3070.
 
-| ID  | Kernel         |      GFLOPS | Performance vs. cuBLAS |
-| --- | :------------- | ----------: | :--------------------- |
-| 0   | **cuBLAS**     | `~39,071.4` | 100.0%                 |
-| 7   | **Naive WMMA** |  `~9,941.5` | 25.4%                  |
-| 8   | **Naive MMA**  |  `~9,450.8` | 24.2%                  |
+| ID  | Kernel               |      GFLOPS | Performance vs. cuBLAS |
+| --- | :------------------- | ----------: | :--------------------- |
+| 0   | **cuBLAS**           | `~39,071.4` | 100.0%                 |
+| 7   | **Naive WMMA**       |  `~9,941.5` | 25.4%                  |
+| 8   | **Naive MMA**        |  `~9,450.8` | 24.2%                  |
+| 9   | **Hierarchical MMA** | `~18,153.8` | 46.5%                  |
 
 ## Kernel Explanations
 
@@ -141,6 +142,10 @@ This is the first custom kernel which uses tensor cores and mixed precision (FP1
 ### 8: [Naive MMA](./src/kernels/08_naive_mma.cuh)
 
 This kernel uses low-level PTX instructions instead of the WMMA API. It is based on the `mma.sync.aligned.m16n8k8` instruction and uses `ldmatrix` to load values from shared memory into registers. Blocks again consist of 1 warp so one blocktile is effective one warptile but this kernel supports arbitrary block sizes as long as they are compatible with the MMA size (16x8x8). Using raw PTX instructions give us a lot more control and this kernel is a middle step between the high-level WMMA kernel and the more optimized kernels.
+
+### 9: [Hierarchical MMA](./src/kernels/09_hierarchical_mma.cuh)
+
+This kernel implements the full tiling hierarchy. Blocktiles consist of warptiles and each tiling level has a configurable size. Registers are reused across the iterations on the innermost loop which keeps the tensor cores more satiated. After doing some basic finetuning, this kernel runs almost 100% faster than the previous one and at almost 50% of cuBLAS speed without any sophisticated optimizations.
 
 ## License
 

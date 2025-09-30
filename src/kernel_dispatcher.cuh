@@ -9,6 +9,7 @@
 #include "kernels/06_warptiling.cuh"
 #include "kernels/07_naive_wmma.cuh"
 #include "kernels/08_naive_mma.cuh"
+#include "kernels/09_hierarchical_mma.cuh"
 #include "types.cuh"
 
 template <typename InputType, typename AccumType>
@@ -65,6 +66,9 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
     break;
   case 8:
     run_naive_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    break;
+  case 9:
+    run_hierarchical_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   }
   // No default needed, main() validates the kernel_id
