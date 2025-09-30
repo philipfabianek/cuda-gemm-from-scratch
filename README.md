@@ -72,6 +72,7 @@ Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 
 | --- | :------------- | ----------: | :--------------------- |
 | 0   | **cuBLAS**     | `~39,071.4` | 100.0%                 |
 | 7   | **Naive WMMA** |  `~9,941.5` | 25.4%                  |
+| 8   | **Naive MMA**  |  `~9,450.8` | 24.2%                  |
 
 ## Kernel Explanations
 
@@ -136,6 +137,10 @@ This image displays the roofline model with the cuBLAS kernel and all 6 custom k
 ### 7: [Naive WMMA](./src/kernels/07_naive_wmma.cuh)
 
 This is the first custom kernel which uses tensor cores and mixed precision (FP16 + FP32). It is programmed using the WMMA (warp matrix multiply accumulate) API. In this kernel, blocks consist of 1 warp and each warp computes a `16 x 16` tile of the output matrix. Despite the simple implenetation, it achieves almost 10 TFLOPS, a significant speedup over the naive FP32 kernel and approaches both the FP32 cuBLAS and warptiling kernels.
+
+### 8: [Naive MMA](./src/kernels/08_naive_mma.cuh)
+
+This kernel uses low-level PTX instructions instead of the WMMA API. It is based on the `mma.sync.aligned.m16n8k8` instruction and uses `ldmatrix` to load values from shared memory into registers. Blocks again consist of 1 warp so one blocktile is effective one warptile but this kernel supports arbitrary block sizes as long as they are compatible with the MMA size (16x8x8). Using raw PTX instructions give us a lot more control and this kernel is a middle step between the high-level WMMA kernel and the more optimized kernels.
 
 ## License
 
