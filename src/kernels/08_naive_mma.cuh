@@ -4,13 +4,8 @@
 
 #include "types.cuh"
 
-// The shape of the MMA we are using
-// (mma.sync.aligned.m16n8k8)
-constexpr int MMA_M = 16;
-constexpr int MMA_N = 8;
-constexpr int MMA_K = 8;
-
-template <const int num_threads, const int BM, const int BN, const int BK>
+template <const int num_threads, const int BM, const int BN, const int BK,
+          const int MMA_M, const int MMA_N, const int MMA_K>
 __global__ void naive_mma_kernel(int M, int N, int K, float alpha,
                                  const half *d_A, const half *d_B, float beta,
                                  float *d_C) {
@@ -132,6 +127,17 @@ __global__ void naive_mma_kernel(int M, int N, int K, float alpha,
 
 void run_naive_mma_kernel(int M, int N, int K, float alpha, const half *d_A,
                           const half *d_B, float beta, float *d_C) {
+  // The shape of the MMA we are using
+  // (mma.sync.aligned.m16n8k8)
+  constexpr int MMA_M = 16;
+  constexpr int MMA_N = 8;
+  constexpr int MMA_K = 8;
+
+  static_assert(MMA_M == 16);
+  static_assert(MMA_N == 8);
+  static_assert(MMA_K == 8);
+
+  // Blocktile sizes, must be multiples of the MMA shape
   const int BM = 64;
   const int BN = 32;
   const int BK = 8;
@@ -148,6 +154,6 @@ void run_naive_mma_kernel(int M, int N, int K, float alpha, const half *d_A,
   dim3 block_dim(num_threads);
   dim3 grid_dim((N + BN - 1) / BN, (M + BM - 1) / BM);
 
-  naive_mma_kernel<num_threads, BM, BN, BK>
+  naive_mma_kernel<num_threads, BM, BN, BK, MMA_M, MMA_N, MMA_K>
       <<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
