@@ -74,6 +74,7 @@ Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 
 | 7   | **Naive WMMA**       |  `~9,941.5` | 25.4%                  |
 | 8   | **Naive MMA**        |  `~9,450.8` | 24.2%                  |
 | 9   | **Hierarchical MMA** | `~18,153.8` | 46.5%                  |
+| 10  | **Vectorized MMA**   | `~27,045.0` | 69.2%                  |
 
 ## Kernel Explanations
 
@@ -146,6 +147,10 @@ This kernel uses low-level PTX instructions instead of the WMMA API. It is based
 ### 9: [Hierarchical MMA](./src/kernels/09_hierarchical_mma.cuh)
 
 This kernel implements the full tiling hierarchy. Blocktiles consist of warptiles and each tiling level has a configurable size. Registers are reused across the iterations on the innermost loop which keeps the tensor cores more satiated. After doing some basic finetuning, this kernel runs almost 100% faster than the previous one and at almost 50% of cuBLAS speed without any sophisticated optimizations.
+
+### 10: [Vectorized MMA](./src/kernels/10_vectorized_mma.cuh)
+
+This kernel uses vectorized 128-bit loads for loading values from global memory into shared memory for the A and B tiles. This simple change results in a massive performance boost and the kernel is slowly starting to approach cuBLAS performance on my GPU.
 
 ## License
 
