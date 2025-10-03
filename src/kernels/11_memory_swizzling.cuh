@@ -56,9 +56,10 @@ __global__ void memory_swizzling_kernel(int M, int N, int K, float alpha,
   constexpr int b_shmem_row_stride = (num_threads * 8) / BN;
   constexpr int b_shmem_iters = BK / b_shmem_row_stride;
 
-  // Swizzling parameters, mask is shifted by 3 bits because of the vectorization
-  // and then by a number of bits needed for column index representation,
-  // the _bytes masks are used for ldmatrix instructions because they use byte offsets
+  // Swizzling parameters, mask is shifted by 3 bits because elements
+  // in each MMA tile should stay together and then by a number of bits
+  // needed for column index representation, the _bytes masks are used
+  // for ldmatrix instructions because they use byte offsets
   // instead of element offsets, half is 2 bytes hence the << 1 shift
   constexpr int a_swizzle_bits = int_log2(BK / 8);
   constexpr int a_swizzle_mask = 0b111 << (3 + a_swizzle_bits);

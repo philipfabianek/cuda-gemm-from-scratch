@@ -71,7 +71,7 @@ __device__ constexpr int int_log2(int x) {
 }
 
 // Convert a generic pointer to a 32-bit shared memory offset
-// that can be used in ldmatrix instructions without the .shared modifier
+// that can be used in ldmatrix instructions with the .shared modifier
 __device__ uint32_t cvta_to_shared_u32(const void *pointer) {
   uint32_t address;
   asm("{\n\t"

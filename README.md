@@ -40,7 +40,7 @@ This will compile the project. The executable `gemm_runner` will be located in t
 You can run a specific kernel by passing its ID as a command-line argument:
 
 ```bash
-# Run the warptiling FP32 kernel (ID 1)
+# Run the warptiling FP32 kernel (ID 6)
 ./build/gemm_runner --kernel 6 --precision fp32 --repeats 1000
 
 # Run the FP16 cuBLAS kernel (ID 0)
