@@ -61,3 +61,25 @@ void verify_with_cublas_reference(int M, int N, const T *d_C_result,
            h_error_count);
   }
 }
+
+__device__ constexpr int int_log2(int x) {
+  int result = 0;
+  while (x >>= 1) {
+    result++;
+  }
+  return result;
+}
+
+// Convert a generic pointer to a 32-bit shared memory offset
+// that can be used in ldmatrix instructions without the .shared modifier
+__device__ uint32_t cvta_to_shared_u32(const void *pointer) {
+  uint32_t address;
+  asm("{\n\t"
+      "  .reg .u64 u64addr;\n\t"
+      "  cvta.to.shared.u64 u64addr, %1;\n\t"
+      "  cvt.u32.u64 %0, u64addr;\n\t"
+      "}"
+      : "=r"(address)
+      : "l"(pointer));
+  return address;
+}

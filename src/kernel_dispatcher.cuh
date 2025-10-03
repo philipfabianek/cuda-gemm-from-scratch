@@ -11,6 +11,7 @@
 #include "kernels/08_naive_mma.cuh"
 #include "kernels/09_hierarchical_mma.cuh"
 #include "kernels/10_vectorized_mma.cuh"
+#include "kernels/11_memory_swizzling.cuh"
 #include "types.cuh"
 
 template <typename InputType, typename AccumType>
@@ -73,6 +74,9 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
     break;
   case 10:
     run_vectorized_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    break;
+  case 11:
+    run_memory_swizzling_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   }
   // No default needed, main() validates the kernel_id

@@ -75,6 +75,7 @@ Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 
 | 8   | **Naive MMA**        |  `~9,450.8` | 24.2%                  |
 | 9   | **Hierarchical MMA** | `~18,153.8` | 46.5%                  |
 | 10  | **Vectorized MMA**   | `~27,045.0` | 69.2%                  |
+| 11  | **Memory swizzling** | `~32,914.6` | 84.2%                  |
 
 ## Kernel Explanations
 
@@ -151,6 +152,10 @@ This kernel implements the full tiling hierarchy. Blocktiles consist of warptile
 ### 10: [Vectorized MMA](./src/kernels/10_vectorized_mma.cuh)
 
 This kernel uses vectorized 128-bit loads for loading values from global memory into shared memory for the A and B tiles. This simple change results in a massive performance boost and the kernel is slowly starting to approach cuBLAS performance on my GPU.
+
+### 11: [Memory swizzling](./src/kernels/11_memory_swizzling.cuh)
+
+This kernel uses memory swizzling to get rid of all bank conflicts when loading values from shared memory into registers. The loops are also slightly refactored for efficiency and the kernel uses shared memory offsets for the `ldmatrix` instructions instead of a generic address pointer which makes it even faster. After implementing memory swizzling, I adjusted tile sizes because it resulted in better performance.
 
 ## License
 

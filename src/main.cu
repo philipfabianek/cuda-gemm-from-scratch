@@ -80,6 +80,7 @@ int main(int argc, char **argv) {
     case 8:
     case 9:
     case 10:
+    case 11:
       run_and_benchmark<half, float>(kernel_id, size, repeats, handle);
       break;
     default:
