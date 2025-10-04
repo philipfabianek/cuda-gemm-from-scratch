@@ -76,6 +76,7 @@ Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 
 | 9   | **Hierarchical MMA** | `~18,153.8` | 46.5%                  |
 | 10  | **Vectorized MMA**   | `~27,045.0` | 69.2%                  |
 | 11  | **Memory swizzling** | `~32,914.6` | 84.2%                  |
+| 12  | **Buffered GMEM**    | `~34,108.7` | 87.3%                  |
 
 ## Kernel Explanations
 
@@ -156,6 +157,10 @@ This kernel uses vectorized 128-bit loads for loading values from global memory 
 ### 11: [Memory swizzling](./src/kernels/11_memory_swizzling.cuh)
 
 This kernel uses memory swizzling to get rid of all bank conflicts when loading values from shared memory into registers. The loops are also slightly refactored for efficiency and the kernel uses shared memory offsets for the `ldmatrix` instructions instead of a generic address pointer which makes it even faster. After implementing memory swizzling, I adjusted tile sizes because it resulted in better performance.
+
+### 12: [Buffered GMEM](./src/kernels/12_buffered_gmem.cuh)
+
+This kernel uses a manual buffer to load values from global memory to shared memory. It loads the necessary values for the first tile outside the main loop. At the beginning of the loop, it initiates the global memory loads and only stores the value into shared memory after the main computation. This allows the computation to overlap with global memory loads.
 
 ## License
 
