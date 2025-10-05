@@ -5,6 +5,8 @@
 #include "types.cuh"
 #include "utils.cuh"
 
+namespace k12 {
+
 template <const int num_threads, const int smem_rows, const int smem_cols>
 __device__ __forceinline__ void load_from_gmem(const int gmem_cols,
                                                const half *src, float4 *dst) {
@@ -270,3 +272,5 @@ void run_buffered_gmem_kernel(int M, int N, int K, float alpha, const half *d_A,
   buffered_gmem_kernel<num_threads, BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K>
       <<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k12

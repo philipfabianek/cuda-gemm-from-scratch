@@ -1,5 +1,7 @@
 #pragma once
 
+namespace k3 {
+
 template <const int BM, const int BN, const int BK, const int TM>
 __global__ void sgemm_1D_coarsened_kernel(int M, int N, int K, float alpha,
                                           const float *A, const float *B,
@@ -103,3 +105,5 @@ void run_1D_coarsened_kernel(int M, int N, int K, float alpha, const float *d_A,
   sgemm_1D_coarsened_kernel<BM, BN, BK, TM>
       <<<gridDim, blockDim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k3

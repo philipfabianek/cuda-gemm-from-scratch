@@ -6,6 +6,8 @@
 
 using namespace nvcuda;
 
+namespace k7 {
+
 template <const int WARPSIZE, const int WMMA_M, const int WMMA_N,
           const int WMMA_K>
 __global__ void gemm_naive_wmma_kernel(int M, int N, int K, float alpha,
@@ -76,3 +78,5 @@ void run_naive_wmma_kernel(int M, int N, int K, float alpha, const half *d_A,
   gemm_naive_wmma_kernel<WARPSIZE, WMMA_M, WMMA_N, WMMA_K>
       <<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k7

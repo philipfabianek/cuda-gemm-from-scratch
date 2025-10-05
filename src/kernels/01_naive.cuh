@@ -1,5 +1,7 @@
 #pragma once
 
+namespace k1 {
+
 __global__ void sgemm_naive_kernel(int M, int N, int K, float alpha,
                                    const float *d_A, const float *d_B,
                                    float beta, float *d_C) {
@@ -23,3 +25,5 @@ void run_naive_kernel(int M, int N, int K, float alpha, const float *d_A,
   sgemm_naive_kernel<<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta,
                                               d_C);
 }
+
+} // namespace k1

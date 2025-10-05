@@ -1,5 +1,7 @@
 #pragma once
 
+namespace k5 {
+
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
 __global__ void sgemm_transposed_kernel(int M, int N, int K, float alpha,
                                         float *A, float *B, float beta,
@@ -145,3 +147,5 @@ void run_transposed_kernel(int M, int N, int K, float alpha, float *d_A,
   sgemm_transposed_kernel<BM, BN, BK, TM, TN>
       <<<gridDim, blockDim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k5

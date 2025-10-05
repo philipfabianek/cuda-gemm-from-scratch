@@ -4,6 +4,8 @@
 
 #include "types.cuh"
 
+namespace k10 {
+
 template <const int num_threads, const int BM, const int BN, const int BK,
           const int WM, const int WN, const int WK, const int MMA_M,
           const int MMA_N, const int MMA_K>
@@ -190,3 +192,5 @@ void run_vectorized_mma_kernel(int M, int N, int K, float alpha,
                         MMA_K>
       <<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k10

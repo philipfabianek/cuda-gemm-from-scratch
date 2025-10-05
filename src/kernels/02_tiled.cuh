@@ -1,5 +1,7 @@
 #pragma once
 
+namespace k2 {
+
 template <const int TILE_DIM>
 __global__ void sgemm_tiled_kernel(int M, int N, int K, float alpha,
                                    const float *d_A, const float *d_B,
@@ -56,3 +58,5 @@ void run_tiled_kernel(int M, int N, int K, float alpha, const float *d_A,
   sgemm_tiled_kernel<TILE_DIM>
       <<<grid_dim, threads_per_block>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k2

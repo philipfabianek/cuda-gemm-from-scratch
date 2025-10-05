@@ -4,6 +4,8 @@
 
 #include "types.cuh"
 
+namespace k0 {
+
 template <typename InputType, typename AccumType>
 void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
                        const InputType *d_A, const InputType *d_B, float beta,
@@ -55,3 +57,5 @@ void run_cublas_kernel(cublasHandle_t handle, int M, int N, int K, float alpha,
                input_type, lda, &beta, d_C, output_type, ldc, compute_type,
                algo);
 }
+
+} // namespace k0

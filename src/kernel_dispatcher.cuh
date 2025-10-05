@@ -31,26 +31,26 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
                 float alpha, float *d_A, float *d_B, float beta, float *d_C) {
   switch (kernel_id) {
   case 0:
-    run_cublas_kernel<float, float>(handle, M, N, K, alpha, d_A, d_B, beta,
-                                    d_C);
+    k0::run_cublas_kernel<float, float>(handle, M, N, K, alpha, d_A, d_B, beta,
+                                        d_C);
     break;
   case 1:
-    run_naive_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k1::run_naive_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 2:
-    run_tiled_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k2::run_tiled_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 3:
-    run_1D_coarsened_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k3::run_1D_coarsened_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 4:
-    run_2D_coarsened_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k4::run_2D_coarsened_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 5:
-    run_transposed_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k5::run_transposed_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 6:
-    run_warptiling_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k6::run_warptiling_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   }
   // No default needed, main() validates the kernel_id
@@ -62,25 +62,26 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
                 float alpha, half *d_A, half *d_B, float beta, float *d_C) {
   switch (kernel_id) {
   case 0:
-    run_cublas_kernel<half, float>(handle, M, N, K, alpha, d_A, d_B, beta, d_C);
+    k0::run_cublas_kernel<half, float>(handle, M, N, K, alpha, d_A, d_B, beta,
+                                       d_C);
     break;
   case 7:
-    run_naive_wmma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k7::run_naive_wmma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 8:
-    run_naive_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k8::run_naive_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 9:
-    run_hierarchical_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k9::run_hierarchical_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 10:
-    run_vectorized_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k10::run_vectorized_mma_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 11:
-    run_memory_swizzling_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k11::run_memory_swizzling_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   case 12:
-    run_buffered_gmem_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    k12::run_buffered_gmem_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   }
   // No default needed, main() validates the kernel_id

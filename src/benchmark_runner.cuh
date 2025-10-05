@@ -21,7 +21,7 @@ void run_warmup_and_verify(int kernel_id, cublasHandle_t handle, int M, int N,
   CUDA_CHECK(cudaMalloc(&d_C_reference, c_size));
   CUDA_CHECK(
       cudaMemcpy(d_C_reference, d_C_initial, c_size, cudaMemcpyDeviceToDevice));
-  run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C_reference);
+  k0::run_cublas_kernel(handle, M, N, K, alpha, d_A, d_B, beta, d_C_reference);
 
   // Warm-up run, check for errors, verify results and reset d_C afterwards
   run_kernel<InputType, AccumType>(kernel_id, handle, M, N, K, alpha, d_A, d_B,

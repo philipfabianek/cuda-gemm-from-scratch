@@ -1,6 +1,6 @@
-#include <cstdio>
-
 #pragma once
+
+namespace k6 {
 
 template <const int NUM_THREADS, const int BM, const int BN, const int BK,
           const int TM, const int TN, const int WM, const int WN,
@@ -203,3 +203,5 @@ void run_warptiling_kernel(int M, int N, int K, float alpha, float *d_A,
                           NUM_SN, SUBTILE_M, SUBTILE_N>
       <<<gridDim, blockDim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k6

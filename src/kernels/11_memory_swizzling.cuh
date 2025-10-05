@@ -5,6 +5,8 @@
 #include "types.cuh"
 #include "utils.cuh"
 
+namespace k11 {
+
 template <const int num_threads, const int BM, const int BN, const int BK,
           const int WM, const int WN, const int WK, const int MMA_M,
           const int MMA_N, const int MMA_K>
@@ -251,3 +253,5 @@ void run_memory_swizzling_kernel(int M, int N, int K, float alpha,
                           MMA_K>
       <<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k11

@@ -4,6 +4,8 @@
 
 #include "types.cuh"
 
+namespace k8 {
+
 template <const int num_threads, const int BM, const int BN, const int BK,
           const int MMA_M, const int MMA_N, const int MMA_K>
 __global__ void naive_mma_kernel(int M, int N, int K, float alpha,
@@ -157,3 +159,5 @@ void run_naive_mma_kernel(int M, int N, int K, float alpha, const half *d_A,
   naive_mma_kernel<num_threads, BM, BN, BK, MMA_M, MMA_N, MMA_K>
       <<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
+
+} // namespace k8
