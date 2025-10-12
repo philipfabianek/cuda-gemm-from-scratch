@@ -233,12 +233,12 @@ void run_buffered_gmem_kernel(int M, int N, int K, float alpha, const half *d_A,
   // Blocktile sizes
   const int BM = 128;
   const int BN = 128;
-  const int BK = 64;
+  const int BK = 32;
 
   // Warptile sizes
   const int WM = 64;
   const int WN = 64;
-  const int WK = 16;
+  const int WK = 32;
 
   // Number of warps needs to be equal to the number of warptiles
   constexpr int num_warps = (BN / WN) * (BM / WM);

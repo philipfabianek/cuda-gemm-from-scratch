@@ -76,7 +76,7 @@ Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 
 | 9   | **Hierarchical MMA** | `~18,153.8` | 46.5%                  |
 | 10  | **Vectorized MMA**   | `~27,045.0` | 69.2%                  |
 | 11  | **Memory swizzling** | `~32,914.6` | 84.2%                  |
-| 12  | **Buffered GMEM**    | `~34,108.7` | 87.3%                  |
+| 12  | **Buffered GMEM**    | `~34,596.7` | 88.5%                  |
 
 ## Kernel Explanations
 
@@ -160,7 +160,7 @@ This kernel uses memory swizzling to get rid of all bank conflicts when loading 
 
 ### 12: [Buffered GMEM](./src/kernels/12_buffered_gmem.cuh)
 
-This kernel uses a manual buffer to load values from global memory to shared memory. It loads the necessary values for the first tile outside the main loop. At the beginning of the loop, it initiates the global memory loads and only stores the value into shared memory after the main computation. This allows the computation to overlap with global memory loads.
+This kernel uses a buffer to load values from global memory to shared memory. It loads the necessary values for the first tile outside the main loop. At the beginning of the loop, it initiates the global memory loads and only stores the value into shared memory after the main computation. This allows the computation to overlap with global memory loads. Surprisingly this kernel is faster with modified `BK` and `WK` values, both of them equal to 32.
 
 ## License
 
