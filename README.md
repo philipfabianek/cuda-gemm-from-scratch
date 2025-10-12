@@ -3,7 +3,11 @@
 This repository contains several implementations of a general matrix multiplication (GEMM) kernel in CUDA, supporting both single-precision (FP32) and mixed-precision (FP16 inputs, FP32 accumulation) operations.
 It starts with a slow naive kernel and applies several optimizations to approach and surpass (at least on my GPU) the performance of NVIDIA's cuBLAS library.
 
-The project is heavily inspired by [this blog post](https://siboehm.com/articles/22/CUDA-MMM) written by [Simon Boehm](https://siboehm.com/). Compared to the blog post, I focused more on [analysis-driven optimizations](https://developer.nvidia.com/blog/analysis-driven-optimization-preparing-for-analysis-with-nvidia-nsight-compute-part-1/) and profiling with Nsight Compute.
+The project is heavily inspired by the following blog posts:
+
+- [How to Optimize a CUDA Matmul Kernel for cuBLAS-like Performance: a Worklog
+  ](https://siboehm.com/articles/22/CUDA-MMM) by [Simon Boehm](https://siboehm.com/)
+- [How To Write A Fast Matrix Multiplication From Scratch With Tensor Cores](https://alexarmbr.github.io/2024/08/10/How-To-Write-A-Fast-Matrix-Multiplication-From-Scratch-With-Tensor-Cores.html) by [Alex Armbruster](https://alexarmbr.github.io/)
 
 ## Hardware Requirements
 
@@ -77,7 +81,7 @@ Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 
 | 10  | **Vectorized MMA**   | `~27,625` | 70.4%                  |
 | 11  | **Memory swizzling** | `~33,281` | 85.2%                  |
 | 12  | **Buffered GMEM**    | `~34,809` | 89.1%                  |
-| 12  | **Unrolled SMEM**    | `~36,445` | 93.3%                  |
+| 13  | **Unrolled SMEM**    | `~36,445` | 93.3%                  |
 
 ## Kernel Explanations
 
