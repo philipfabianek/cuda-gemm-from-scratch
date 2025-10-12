@@ -54,29 +54,30 @@ You can run a specific kernel by passing its ID as a command-line argument:
 
 Performance for a 2048x2048 FP32 matrix multiplication on an NVIDIA GeForce RTX 3070.
 
-| ID  | Kernel           |      GFLOPS | Performance vs. cuBLAS |
-| --- | :--------------- | ----------: | :--------------------- |
-| 0   | **cuBLAS**       | `~11,613.7` | 100.0%                 |
-| 1   | **Naive**        |  `~1,343.8` | 11.6%                  |
-| 2   | **Tiled**        |  `~1,805.8` | 15.5%                  |
-| 3   | **1D Coarsened** |  `~5,865.9` | 50.5%                  |
-| 4   | **2D Coarsened** | `~10,836.8` | 93.3%                  |
-| 5   | **Transposed**   | `~11,711.2` | 100.8%                 |
-| 6   | **Warptiling**   | `~12,621.1` | 108.7%                 |
+| ID  | Kernel           |    GFLOPS | Performance vs. cuBLAS |
+| --- | :--------------- | --------: | :--------------------- |
+| 0   | **cuBLAS**       | `~11,613` | 100.0%                 |
+| 1   | **Naive**        |  `~1,343` | 11.6%                  |
+| 2   | **Tiled**        |  `~1,805` | 15.6%                  |
+| 3   | **1D Coarsened** |  `~5,865` | 50.5%                  |
+| 4   | **2D Coarsened** | `~10,836` | 93.3%                  |
+| 5   | **Transposed**   | `~11,711` | 100.8%                 |
+| 6   | **Warptiling**   | `~12,621` | 108.7%                 |
 
 ## FP16 Performance Overview
 
 Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 3070.
 
-| ID  | Kernel               |      GFLOPS | Performance vs. cuBLAS |
-| --- | :------------------- | ----------: | :--------------------- |
-| 0   | **cuBLAS**           | `~39,071.4` | 100.0%                 |
-| 7   | **Naive WMMA**       |  `~9,941.5` | 25.4%                  |
-| 8   | **Naive MMA**        |  `~9,450.8` | 24.2%                  |
-| 9   | **Hierarchical MMA** | `~18,153.8` | 46.5%                  |
-| 10  | **Vectorized MMA**   | `~27,045.0` | 69.2%                  |
-| 11  | **Memory swizzling** | `~32,914.6` | 84.2%                  |
-| 12  | **Buffered GMEM**    | `~34,596.7` | 88.5%                  |
+| ID  | Kernel               |    GFLOPS | Performance vs. cuBLAS |
+| --- | :------------------- | --------: | :--------------------- |
+| 0   | **cuBLAS**           | `~39,071` | 100.0%                 |
+| 7   | **Naive WMMA**       |  `~9,941` | 25.4%                  |
+| 8   | **Naive MMA**        |  `~9,450` | 24.2%                  |
+| 9   | **Hierarchical MMA** | `~18,153` | 46.5%                  |
+| 10  | **Vectorized MMA**   | `~27,625` | 70.4%                  |
+| 11  | **Memory swizzling** | `~33,281` | 85.2%                  |
+| 12  | **Buffered GMEM**    | `~34,809` | 89.1%                  |
+| 12  | **Unrolled SMEM**    | `~36,445` | 93.3%                  |
 
 ## Kernel Explanations
 
@@ -156,11 +157,15 @@ This kernel uses vectorized 128-bit loads for loading values from global memory 
 
 ### 11: [Memory swizzling](./src/kernels/11_memory_swizzling.cuh)
 
-This kernel uses memory swizzling to get rid of all bank conflicts when loading values from shared memory into registers. The loops are also slightly refactored for efficiency and the kernel uses shared memory offsets for the `ldmatrix` instructions instead of a generic address pointer which makes it even faster. After implementing memory swizzling, I adjusted tile sizes because it resulted in better performance.
+This kernel uses memory swizzling to get rid of all bank conflicts when loading values from shared memory into registers. The loops are also slightly refactored for efficiency and the kernel uses shared memory offsets for the `ldmatrix` instructions instead of a generic address pointer which makes it even faster. After implementing memory swizzling, I adjusted tile sizes because it resulted in better performance. In fact, the grid size for this kernel now matches the grid size for the cuBLAS kernel.
 
 ### 12: [Buffered GMEM](./src/kernels/12_buffered_gmem.cuh)
 
-This kernel uses a buffer to load values from global memory to shared memory. It loads the necessary values for the first tile outside the main loop. At the beginning of the loop, it initiates the global memory loads and only stores the value into shared memory after the main computation. This allows the computation to overlap with global memory loads. Surprisingly this kernel is faster with modified `BK` and `WK` values, both of them equal to 32.
+This kernel uses a buffer to load values from global memory to shared memory. It loads the necessary values for the first tile outside the main loop. At the beginning of the loop, it initiates the global memory loads and only stores the value into shared memory after the main computation. This allows the computation to overlap with global memory loads. Surprisingly, on my GPU, this kernel is faster with modified `BK` and `WK` values, both of them equal to 32. Note that this results in shared memory usage which is very similar to the cuBLAS kernel.
+
+### 13: [Unrolled SMEM](./src/kernels/13_unrolled_smem.cuh)
+
+This kernel uses manually unrolled functions (`load_a_from_smem` and `load_b_from_smem`) to load values from shared memory into registers. This allows us to significantly reduce the number of instructions resulting in a noticeable speedup. Compared to the previous kernel, the total number of executed instructions decreases by about 50% and is now comparable to the number of instructions executed by the cuBLAS kernel.
 
 ## License
 

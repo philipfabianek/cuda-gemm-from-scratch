@@ -13,6 +13,7 @@
 #include "kernels/10_vectorized_mma.cuh"
 #include "kernels/11_memory_swizzling.cuh"
 #include "kernels/12_buffered_gmem.cuh"
+#include "kernels/13_unrolled_smem.cuh"
 #include "types.cuh"
 
 template <typename InputType, typename AccumType>
@@ -82,6 +83,9 @@ void run_kernel(int kernel_id, cublasHandle_t handle, int M, int N, int K,
     break;
   case 12:
     k12::run_buffered_gmem_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
+    break;
+  case 13:
+    k13::run_unrolled_smem_kernel(M, N, K, alpha, d_A, d_B, beta, d_C);
     break;
   }
   // No default needed, main() validates the kernel_id
