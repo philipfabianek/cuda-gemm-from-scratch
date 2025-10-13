@@ -80,8 +80,8 @@ Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 
 | 9   | **Hierarchical MMA** | `~18,153` | 46.5%                  |
 | 10  | **Vectorized MMA**   | `~27,625` | 70.4%                  |
 | 11  | **Memory swizzling** | `~33,281` | 85.2%                  |
-| 12  | **Buffered GMEM**    | `~34,809` | 89.1%                  |
-| 13  | **Unrolled SMEM**    | `~36,445` | 93.3%                  |
+| 12  | **Buffered GMEM**    | `~35,040` | 89.7%                  |
+| 13  | **Unrolled SMEM**    | `~36,545` | 93.5%                  |
 
 ## Kernel Explanations
 
