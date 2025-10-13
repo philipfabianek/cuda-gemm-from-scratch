@@ -45,21 +45,103 @@ __device__ __forceinline__ void store_to_smem(const float4 *src, half *dst) {
   }
 }
 
+template <const int BM, const int BN, const int BK, const int WM, const int WN,
+          const int WK, const int MMA_M, const int MMA_N, const int MMA_K,
+          const int MMA_TILES_M, const int MMA_TILES_N, const int MMA_TILES_K>
+__device__ __forceinline__ void
+compute_warptile_mma(const int warptile_row, const int warptile_col,
+                     const int lane_id, half *a_smem, half *b_smem,
+                     uint32_t a_regs[MMA_TILES_M][MMA_TILES_K][2],
+                     uint32_t b_regs[MMA_TILES_K][MMA_TILES_N][1],
+                     float c_regs[MMA_TILES_M][MMA_TILES_N][4]) {
+  // Swizzling parameters
+  constexpr int a_swizzle_bits = int_log2(BK / 8);
+  constexpr int a_swizzle_mask = 0b111 << (3 + a_swizzle_bits);
+  constexpr int a_swizzle_mask_bytes = a_swizzle_mask << 1;
+
+  constexpr int b_swizzle_bits = int_log2(BN / 8);
+  constexpr int b_swizzle_mask = 0b111 << (3 + b_swizzle_bits);
+  constexpr int b_swizzle_mask_bytes = b_swizzle_mask << 1;
+
+  // This loop level only affects register usage
+  for (int warp_k = 0; warp_k < BK; warp_k += WK) {
+    uint32_t a_smem_byte_offset =
+        cvta_to_shared_u32(&a_smem[warptile_row * BK + warp_k]);
+
+    // Load values from shared memory A tile to registers
+    for (int m_tile = 0; m_tile < MMA_TILES_M; m_tile++) {
+      for (int k_frag = 0; k_frag < MMA_TILES_K; k_frag++) {
+        const int thread_byte_offset =
+            ((m_tile * MMA_M + lane_id) * BK + k_frag * MMA_K) * sizeof(half);
+        int total_byte_offset = a_smem_byte_offset + thread_byte_offset;
+
+        // Swizzle
+        total_byte_offset =
+            total_byte_offset ^
+            ((total_byte_offset & a_swizzle_mask_bytes) >> a_swizzle_bits);
+
+        // Use 'ldmatrix' with shared memory offset
+        asm volatile("ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0, %1}, [%2];"
+                     : "=r"(a_regs[m_tile][k_frag][0]),
+                       "=r"(a_regs[m_tile][k_frag][1])
+                     : "r"(total_byte_offset));
+      }
+    }
+
+    uint32_t b_smem_byte_offset =
+        cvta_to_shared_u32(&b_smem[warp_k * BN + warptile_col]);
+
+    // Load values from shared memory B tile to registers
+    for (int k_frag = 0; k_frag < MMA_TILES_K; k_frag++) {
+      for (int n_tile = 0; n_tile < MMA_TILES_N; n_tile++) {
+        const int thread_byte_offset =
+            ((k_frag * MMA_K + threadIdx.x % MMA_K) * BN + n_tile * MMA_N) *
+            sizeof(half);
+        int total_byte_offset = b_smem_byte_offset + thread_byte_offset;
+
+        // Swizzle
+        total_byte_offset =
+            total_byte_offset ^
+            ((total_byte_offset & b_swizzle_mask_bytes) >> b_swizzle_bits);
+
+        // Use 'ldmatrix' with shared memory offset
+        asm volatile(
+            "ldmatrix.sync.aligned.m8n8.x1.trans.shared.b16 {%0}, [%1];"
+            : "=r"(b_regs[k_frag][n_tile][0])
+            : "r"(total_byte_offset));
+      }
+    }
+
+    // Perform MMA
+    for (int k_frag = 0; k_frag < MMA_TILES_K; k_frag++) {
+      for (int m_tile = 0; m_tile < MMA_TILES_M; m_tile++) {
+        for (int n_tile = 0; n_tile < MMA_TILES_N; n_tile++) {
+          asm volatile(
+              "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32 "
+              "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};"
+              : "=f"(c_regs[m_tile][n_tile][0]),
+                "=f"(c_regs[m_tile][n_tile][1]),
+                "=f"(c_regs[m_tile][n_tile][2]), "=f"(c_regs[m_tile][n_tile][3])
+              : "r"(a_regs[m_tile][k_frag][0]), "r"(a_regs[m_tile][k_frag][1]),
+                "r"(b_regs[k_frag][n_tile][0]), "f"(c_regs[m_tile][n_tile][0]),
+                "f"(c_regs[m_tile][n_tile][1]), "f"(c_regs[m_tile][n_tile][2]),
+                "f"(c_regs[m_tile][n_tile][3]));
+        }
+      }
+    }
+  }
+}
+
 template <const int num_threads, const int BM, const int BN, const int BK,
           const int WM, const int WN, const int WK, const int MMA_M,
-          const int MMA_N, const int MMA_K>
+          const int MMA_N, const int MMA_K, const int MMA_TILES_M,
+          const int MMA_TILES_N, const int MMA_TILES_K>
 __global__ void buffered_gmem_kernel(int M, int N, int K, float alpha,
                                      const half *d_A, const half *d_B,
                                      float beta, float *d_C) {
   d_A += blockIdx.y * BM * K;
   d_B += blockIdx.x * BN;
   d_C += blockIdx.y * BM * N + blockIdx.x * BN;
-
-  // These numbers describe the number of MMA instructions
-  // within one warptile iteration
-  constexpr int mma_tiles_m = WM / MMA_M;
-  constexpr int mma_tiles_n = WN / MMA_N;
-  constexpr int mma_tiles_k = WK / MMA_K;
 
   const int warp_idx = threadIdx.x / 32;
   const int warptile_row = (warp_idx / (BN / WN)) * WM;
@@ -71,13 +153,13 @@ __global__ void buffered_gmem_kernel(int M, int N, int K, float alpha,
 
   // Values are loaded into registers outside
   // the inner warptile MMA loop
-  uint32_t a_regs[mma_tiles_m][mma_tiles_k][2];
-  uint32_t b_regs[mma_tiles_k][mma_tiles_n][1];
-  float c_regs[mma_tiles_m][mma_tiles_n][4];
+  uint32_t a_regs[MMA_TILES_M][MMA_TILES_K][2];
+  uint32_t b_regs[MMA_TILES_K][MMA_TILES_N][1];
+  float c_regs[MMA_TILES_M][MMA_TILES_N][4];
 
   // Initialize the C registers to zero
-  for (int i = 0; i < mma_tiles_m; ++i) {
-    for (int j = 0; j < mma_tiles_n; ++j) {
+  for (int i = 0; i < MMA_TILES_M; ++i) {
+    for (int j = 0; j < MMA_TILES_N; ++j) {
       c_regs[i][j][0] = 0.0f;
       c_regs[i][j][1] = 0.0f;
       c_regs[i][j][2] = 0.0f;
@@ -95,15 +177,6 @@ __global__ void buffered_gmem_kernel(int M, int N, int K, float alpha,
   constexpr int b_smem_row_stride = (num_threads * 8) / BN;
   constexpr int b_smem_iters = BK / b_smem_row_stride;
 
-  // Swizzling parameters
-  constexpr int a_swizzle_bits = int_log2(BK / 8);
-  constexpr int a_swizzle_mask = 0b111 << (3 + a_swizzle_bits);
-  constexpr int a_swizzle_mask_bytes = a_swizzle_mask << 1;
-
-  constexpr int b_swizzle_bits = int_log2(BN / 8);
-  constexpr int b_swizzle_mask = 0b111 << (3 + b_swizzle_bits);
-  constexpr int b_swizzle_mask_bytes = b_swizzle_mask << 1;
-
   // Registers for loading values from gmem to smem
   float4 tmp_a[a_smem_iters];
   float4 tmp_b[b_smem_iters];
@@ -114,7 +187,8 @@ __global__ void buffered_gmem_kernel(int M, int N, int K, float alpha,
   store_to_smem<num_threads, BM, BK>(tmp_a, a_smem);
   store_to_smem<num_threads, BK, BN>(tmp_b, b_smem);
 
-  for (int block_k = 0; block_k < K; block_k += BK) {
+  // Compute MMA for all tiles but the last one
+  for (int block_k = BK; block_k < K; block_k += BK) {
     // Call '__syncthreads' here because 'store_to_smem' calls
     // are at the end of the loop, this is also compatible
     // with the code above which loads the first tile
@@ -123,79 +197,14 @@ __global__ void buffered_gmem_kernel(int M, int N, int K, float alpha,
     // Start loading values from gmem for the next tile,
     // the 'store_to_smem' calls are at the end of the loop
     // so that the computation can overlap with gmem loading
-    load_from_gmem<num_threads, BM, BK>(K, d_A + (block_k + BK), tmp_a);
-    load_from_gmem<num_threads, BK, BN>(N, d_B + (block_k + BK) * N, tmp_b);
+    load_from_gmem<num_threads, BM, BK>(K, d_A + block_k, tmp_a);
+    load_from_gmem<num_threads, BK, BN>(N, d_B + block_k * N, tmp_b);
 
-    // This loop level only affects register usage
-    for (int warp_k = 0; warp_k < BK; warp_k += WK) {
-      uint32_t a_smem_byte_offset =
-          cvta_to_shared_u32(&a_smem[warptile_row * BK + warp_k]);
-
-      // Load values from shared memory A tile to registers
-      for (int m_tile = 0; m_tile < mma_tiles_m; m_tile++) {
-        for (int k_frag = 0; k_frag < mma_tiles_k; k_frag++) {
-          const int thread_byte_offset =
-              ((m_tile * MMA_M + lane_id) * BK + k_frag * MMA_K) * sizeof(half);
-          int total_byte_offset = a_smem_byte_offset + thread_byte_offset;
-
-          // Swizzle
-          total_byte_offset =
-              total_byte_offset ^
-              ((total_byte_offset & a_swizzle_mask_bytes) >> a_swizzle_bits);
-
-          // Use 'ldmatrix' with shared memory offset
-          asm volatile(
-              "ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0, %1}, [%2];"
-              : "=r"(a_regs[m_tile][k_frag][0]), "=r"(a_regs[m_tile][k_frag][1])
-              : "r"(total_byte_offset));
-        }
-      }
-
-      uint32_t b_smem_byte_offset =
-          cvta_to_shared_u32(&b_smem[warp_k * BN + warptile_col]);
-
-      // Load values from shared memory B tile to registers
-      for (int k_frag = 0; k_frag < mma_tiles_k; k_frag++) {
-        for (int n_tile = 0; n_tile < mma_tiles_n; n_tile++) {
-          const int thread_byte_offset =
-              ((k_frag * MMA_K + threadIdx.x % MMA_K) * BN + n_tile * MMA_N) *
-              sizeof(half);
-          int total_byte_offset = b_smem_byte_offset + thread_byte_offset;
-
-          // Swizzle
-          total_byte_offset =
-              total_byte_offset ^
-              ((total_byte_offset & b_swizzle_mask_bytes) >> b_swizzle_bits);
-
-          // Use 'ldmatrix' with shared memory offset
-          asm volatile(
-              "ldmatrix.sync.aligned.m8n8.x1.trans.shared.b16 {%0}, [%1];"
-              : "=r"(b_regs[k_frag][n_tile][0])
-              : "r"(total_byte_offset));
-        }
-      }
-
-      // Perform MMA
-      for (int k_frag = 0; k_frag < mma_tiles_k; k_frag++) {
-        for (int m_tile = 0; m_tile < mma_tiles_m; m_tile++) {
-          for (int n_tile = 0; n_tile < mma_tiles_n; n_tile++) {
-            asm volatile("mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32 "
-                         "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};"
-                         : "=f"(c_regs[m_tile][n_tile][0]),
-                           "=f"(c_regs[m_tile][n_tile][1]),
-                           "=f"(c_regs[m_tile][n_tile][2]),
-                           "=f"(c_regs[m_tile][n_tile][3])
-                         : "r"(a_regs[m_tile][k_frag][0]),
-                           "r"(a_regs[m_tile][k_frag][1]),
-                           "r"(b_regs[k_frag][n_tile][0]),
-                           "f"(c_regs[m_tile][n_tile][0]),
-                           "f"(c_regs[m_tile][n_tile][1]),
-                           "f"(c_regs[m_tile][n_tile][2]),
-                           "f"(c_regs[m_tile][n_tile][3]));
-          }
-        }
-      }
-    }
+    // Compute the MMA for this warptile
+    compute_warptile_mma<BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K,
+                         MMA_TILES_M, MMA_TILES_N, MMA_TILES_K>(
+        warptile_row, warptile_col, lane_id, a_smem, b_smem, a_regs, b_regs,
+        c_regs);
 
     // Call '__syncthreads' here to finish the computation
     // before overwriting the shared memory values
@@ -205,9 +214,22 @@ __global__ void buffered_gmem_kernel(int M, int N, int K, float alpha,
     store_to_smem<num_threads, BK, BN>(tmp_b, b_smem);
   }
 
+  // Compute MMA for the last tile,
+  // gmem loading and smem storing is not needed here
+  {
+    __syncthreads();
+
+    compute_warptile_mma<BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K,
+                         MMA_TILES_M, MMA_TILES_N, MMA_TILES_K>(
+        warptile_row, warptile_col, lane_id, a_smem, b_smem, a_regs, b_regs,
+        c_regs);
+
+    __syncthreads();
+  }
+
   // Epilogue
-  for (int m_tile = 0; m_tile < mma_tiles_m; m_tile++) {
-    for (int n_tile = 0; n_tile < mma_tiles_n; n_tile++) {
+  for (int m_tile = 0; m_tile < MMA_TILES_M; m_tile++) {
+    for (int n_tile = 0; n_tile < MMA_TILES_N; n_tile++) {
       const int row_offset = warptile_row + m_tile * MMA_M + group_id;
       const int col_offset =
           warptile_col + n_tile * MMA_N + thread_id_in_group * 2;
@@ -250,6 +272,12 @@ void run_buffered_gmem_kernel(int M, int N, int K, float alpha, const half *d_A,
   constexpr int MMA_N = 8;
   constexpr int MMA_K = 8;
 
+  // These numbers describe the number of MMA instructions
+  // within one warptile iteration
+  constexpr int MMA_TILES_M = WM / MMA_M;
+  constexpr int MMA_TILES_N = WN / MMA_N;
+  constexpr int MMA_TILES_K = WK / MMA_K;
+
   static_assert(MMA_M == 16);
   static_assert(MMA_N == 8);
   static_assert(MMA_K == 8);
@@ -269,7 +297,8 @@ void run_buffered_gmem_kernel(int M, int N, int K, float alpha, const half *d_A,
   dim3 block_dim(num_threads);
   dim3 grid_dim((N + BN - 1) / BN, (M + BM - 1) / BM);
 
-  buffered_gmem_kernel<num_threads, BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K>
+  buffered_gmem_kernel<num_threads, BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K,
+                       MMA_TILES_M, MMA_TILES_N, MMA_TILES_K>
       <<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
 

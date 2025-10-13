@@ -45,10 +45,10 @@ __device__ __forceinline__ void store_to_smem(const float4 *src, half *dst) {
   }
 }
 
-template <const int BK, const int mma_tiles_m, const int mma_tiles_k>
+template <const int BK, const int MMA_TILES_M, const int MMA_TILES_K>
 __device__ __forceinline__ void
 load_a_from_smem(const half *warptile_a_smem,
-                 uint32_t (&a_regs)[mma_tiles_m][mma_tiles_k][2]) {
+                 uint32_t (&a_regs)[MMA_TILES_M][MMA_TILES_K][2]) {
   int thread_offset = (threadIdx.x % 32) * BK;
 
   // Swizzle
@@ -125,10 +125,10 @@ load_a_from_smem(const half *warptile_a_smem,
       : "r"(total_byte_offset + ldmatrix_stride));
 }
 
-template <const int BN, const int mma_tiles_n, const int mma_tiles_k>
+template <const int BN, const int MMA_TILES_N, const int MMA_TILES_K>
 __device__ __forceinline__ void
 load_b_from_smem(const half *warptile_b_smem,
-                 uint32_t (&b_regs)[mma_tiles_k][mma_tiles_n][1]) {
+                 uint32_t (&b_regs)[MMA_TILES_K][MMA_TILES_N][1]) {
   int thread_offset = ((threadIdx.x % 8) * BN + ((threadIdx.x % 32) / 8) * 8);
 
   // Swizzle
@@ -203,27 +203,53 @@ load_b_from_smem(const half *warptile_b_smem,
                : "r"(total_byte_offset ^ ldmatrix_xor));
 }
 
+template <const int BM, const int BN, const int BK, const int WM, const int WN,
+          const int WK, const int MMA_M, const int MMA_N, const int MMA_K,
+          const int MMA_TILES_M, const int MMA_TILES_N, const int MMA_TILES_K>
+__device__ __forceinline__ void
+compute_warptile_mma(const int warptile_row, const int warptile_col,
+                     half *a_smem, half *b_smem,
+                     uint32_t (&a_regs)[MMA_TILES_M][MMA_TILES_K][2],
+                     uint32_t (&b_regs)[MMA_TILES_K][MMA_TILES_N][1],
+                     float (&c_regs)[MMA_TILES_M][MMA_TILES_N][4]) {
+  // This loop level only affects register usage
+  for (int warp_k = 0; warp_k < BK; warp_k += WK) {
+    // Load values from shared memory to registers
+    const half *warptile_a_smem = &a_smem[warptile_row * BK + warp_k];
+    load_a_from_smem<BK, MMA_TILES_M, MMA_TILES_K>(warptile_a_smem, a_regs);
+    const half *warptile_b_smem = &b_smem[warp_k * BN + warptile_col];
+    load_b_from_smem<BN, MMA_TILES_N, MMA_TILES_K>(warptile_b_smem, b_regs);
+
+    // Perform MMA
+    for (int k_frag = 0; k_frag < MMA_TILES_K; k_frag++) {
+      for (int m_tile = 0; m_tile < MMA_TILES_M; m_tile++) {
+        for (int n_tile = 0; n_tile < MMA_TILES_N; n_tile++) {
+          asm volatile(
+              "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32 "
+              "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};"
+              : "=f"(c_regs[m_tile][n_tile][0]),
+                "=f"(c_regs[m_tile][n_tile][1]),
+                "=f"(c_regs[m_tile][n_tile][2]), "=f"(c_regs[m_tile][n_tile][3])
+              : "r"(a_regs[m_tile][k_frag][0]), "r"(a_regs[m_tile][k_frag][1]),
+                "r"(b_regs[k_frag][n_tile][0]), "f"(c_regs[m_tile][n_tile][0]),
+                "f"(c_regs[m_tile][n_tile][1]), "f"(c_regs[m_tile][n_tile][2]),
+                "f"(c_regs[m_tile][n_tile][3]));
+        }
+      }
+    }
+  }
+}
+
 template <const int num_threads, const int BM, const int BN, const int BK,
           const int WM, const int WN, const int WK, const int MMA_M,
-          const int MMA_N, const int MMA_K>
+          const int MMA_N, const int MMA_K, const int MMA_TILES_M,
+          const int MMA_TILES_N, const int MMA_TILES_K>
 __global__ void unrolled_smem_kernel(int M, int N, int K, float alpha,
                                      const half *d_A, const half *d_B,
                                      float beta, float *d_C) {
   d_A += blockIdx.y * BM * K;
   d_B += blockIdx.x * BN;
   d_C += blockIdx.y * BM * N + blockIdx.x * BN;
-
-  // These numbers describe the number of MMA instructions
-  // within one warptile iteration
-  constexpr int mma_tiles_m = WM / MMA_M;
-  constexpr int mma_tiles_n = WN / MMA_N;
-  constexpr int mma_tiles_k = WK / MMA_K;
-
-  // This code manually manages the ldmatrix instructions
-  // while were previously inside a loop so these are static now
-  static_assert(mma_tiles_m == 4);
-  static_assert(mma_tiles_n == 8);
-  static_assert(mma_tiles_k == 4);
 
   const int warp_idx = threadIdx.x / 32;
   const int warptile_row = (warp_idx / (BN / WN)) * WM;
@@ -235,13 +261,13 @@ __global__ void unrolled_smem_kernel(int M, int N, int K, float alpha,
 
   // Values are loaded into registers outside
   // the inner warptile MMA loop
-  uint32_t a_regs[mma_tiles_m][mma_tiles_k][2];
-  uint32_t b_regs[mma_tiles_k][mma_tiles_n][1];
-  float c_regs[mma_tiles_m][mma_tiles_n][4];
+  uint32_t a_regs[MMA_TILES_M][MMA_TILES_K][2];
+  uint32_t b_regs[MMA_TILES_K][MMA_TILES_N][1];
+  float c_regs[MMA_TILES_M][MMA_TILES_N][4];
 
   // Initialize the C registers to zero
-  for (int i = 0; i < mma_tiles_m; ++i) {
-    for (int j = 0; j < mma_tiles_n; ++j) {
+  for (int i = 0; i < MMA_TILES_M; ++i) {
+    for (int j = 0; j < MMA_TILES_N; ++j) {
       c_regs[i][j][0] = 0.0f;
       c_regs[i][j][1] = 0.0f;
       c_regs[i][j][2] = 0.0f;
@@ -269,42 +295,18 @@ __global__ void unrolled_smem_kernel(int M, int N, int K, float alpha,
   store_to_smem<num_threads, BM, BK>(tmp_a, a_smem);
   store_to_smem<num_threads, BK, BN>(tmp_b, b_smem);
 
-  for (int block_k = 0; block_k < K; block_k += BK) {
+  // Compute MMA for all tiles but the last one
+  for (int block_k = BK; block_k < K; block_k += BK) {
     __syncthreads();
 
     // Start loading values from gmem for the next tile
-    load_from_gmem<num_threads, BM, BK>(K, d_A + (block_k + BK), tmp_a);
-    load_from_gmem<num_threads, BK, BN>(N, d_B + (block_k + BK) * N, tmp_b);
+    load_from_gmem<num_threads, BM, BK>(K, d_A + block_k, tmp_a);
+    load_from_gmem<num_threads, BK, BN>(N, d_B + block_k * N, tmp_b);
 
-    // This loop level only affects register usage
-    for (int warp_k = 0; warp_k < BK; warp_k += WK) {
-      // Load values from shared memory to registers
-      const half *warptile_a_smem = &a_smem[warptile_row * BK + warp_k];
-      load_a_from_smem<BK, mma_tiles_m, mma_tiles_k>(warptile_a_smem, a_regs);
-      const half *warptile_b_smem = &b_smem[warp_k * BN + warptile_col];
-      load_b_from_smem<BN, mma_tiles_n, mma_tiles_k>(warptile_b_smem, b_regs);
-
-      // Perform MMA
-      for (int k_frag = 0; k_frag < mma_tiles_k; k_frag++) {
-        for (int m_tile = 0; m_tile < mma_tiles_m; m_tile++) {
-          for (int n_tile = 0; n_tile < mma_tiles_n; n_tile++) {
-            asm volatile("mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32 "
-                         "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};"
-                         : "=f"(c_regs[m_tile][n_tile][0]),
-                           "=f"(c_regs[m_tile][n_tile][1]),
-                           "=f"(c_regs[m_tile][n_tile][2]),
-                           "=f"(c_regs[m_tile][n_tile][3])
-                         : "r"(a_regs[m_tile][k_frag][0]),
-                           "r"(a_regs[m_tile][k_frag][1]),
-                           "r"(b_regs[k_frag][n_tile][0]),
-                           "f"(c_regs[m_tile][n_tile][0]),
-                           "f"(c_regs[m_tile][n_tile][1]),
-                           "f"(c_regs[m_tile][n_tile][2]),
-                           "f"(c_regs[m_tile][n_tile][3]));
-          }
-        }
-      }
-    }
+    // Compute the MMA for this warptile
+    compute_warptile_mma<BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K,
+                         MMA_TILES_M, MMA_TILES_N, MMA_TILES_K>(
+        warptile_row, warptile_col, a_smem, b_smem, a_regs, b_regs, c_regs);
 
     __syncthreads();
 
@@ -313,9 +315,21 @@ __global__ void unrolled_smem_kernel(int M, int N, int K, float alpha,
     store_to_smem<num_threads, BK, BN>(tmp_b, b_smem);
   }
 
+  // Compute MMA for the last tile
+  {
+    __syncthreads();
+
+    // Compute the MMA for this warptile
+    compute_warptile_mma<BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K,
+                         MMA_TILES_M, MMA_TILES_N, MMA_TILES_K>(
+        warptile_row, warptile_col, a_smem, b_smem, a_regs, b_regs, c_regs);
+
+    __syncthreads();
+  }
+
   // Epilogue
-  for (int m_tile = 0; m_tile < mma_tiles_m; m_tile++) {
-    for (int n_tile = 0; n_tile < mma_tiles_n; n_tile++) {
+  for (int m_tile = 0; m_tile < MMA_TILES_M; m_tile++) {
+    for (int n_tile = 0; n_tile < MMA_TILES_N; n_tile++) {
       const int row_offset = warptile_row + m_tile * MMA_M + group_id;
       const int col_offset =
           warptile_col + n_tile * MMA_N + thread_id_in_group * 2;
@@ -358,6 +372,18 @@ void run_unrolled_smem_kernel(int M, int N, int K, float alpha, const half *d_A,
   constexpr int MMA_N = 8;
   constexpr int MMA_K = 8;
 
+  // These numbers describe the number of MMA instructions
+  // within one warptile iteration
+  constexpr int MMA_TILES_M = WM / MMA_M;
+  constexpr int MMA_TILES_N = WN / MMA_N;
+  constexpr int MMA_TILES_K = WK / MMA_K;
+
+  // This code manually manages the ldmatrix instructions
+  // while were previously inside a loop so these are static now
+  static_assert(MMA_TILES_M == 4);
+  static_assert(MMA_TILES_N == 8);
+  static_assert(MMA_TILES_K == 4);
+
   static_assert(MMA_M == 16);
   static_assert(MMA_N == 8);
   static_assert(MMA_K == 8);
@@ -377,7 +403,8 @@ void run_unrolled_smem_kernel(int M, int N, int K, float alpha, const half *d_A,
   dim3 block_dim(num_threads);
   dim3 grid_dim((N + BN - 1) / BN, (M + BM - 1) / BM);
 
-  unrolled_smem_kernel<num_threads, BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K>
+  unrolled_smem_kernel<num_threads, BM, BN, BK, WM, WN, WK, MMA_M, MMA_N, MMA_K,
+                       MMA_TILES_M, MMA_TILES_N, MMA_TILES_K>
       <<<grid_dim, block_dim>>>(M, N, K, alpha, d_A, d_B, beta, d_C);
 }
 
