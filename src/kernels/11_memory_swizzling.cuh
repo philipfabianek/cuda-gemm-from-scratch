@@ -49,14 +49,14 @@ __global__ void memory_swizzling_kernel(int M, int N, int K, float alpha,
   }
 
   // Setup shared memory
-  __shared__ half a_shmem[BM * BK];
-  __shared__ half b_shmem[BK * BN];
+  __shared__ half a_smem[BM * BK];
+  __shared__ half b_smem[BK * BN];
 
-  constexpr int a_shmem_row_stride = (num_threads * 8) / BK;
-  constexpr int a_shmem_iters = BM / a_shmem_row_stride;
+  constexpr int a_smem_row_stride = (num_threads * 8) / BK;
+  constexpr int a_smem_iters = BM / a_smem_row_stride;
 
-  constexpr int b_shmem_row_stride = (num_threads * 8) / BN;
-  constexpr int b_shmem_iters = BK / b_shmem_row_stride;
+  constexpr int b_smem_row_stride = (num_threads * 8) / BN;
+  constexpr int b_smem_iters = BK / b_smem_row_stride;
 
   // Swizzling parameters, mask is shifted by 3 bits because elements
   // in each MMA tile should stay together and then by a number of bits
@@ -72,51 +72,51 @@ __global__ void memory_swizzling_kernel(int M, int N, int K, float alpha,
   constexpr int b_swizzle_mask_bytes = b_swizzle_mask << 1;
 
   for (int block_k = 0; block_k < K; block_k += BK) {
-    int a_shmem_row = (threadIdx.x * 8) / BK;
-    const int a_shmem_col = (threadIdx.x * 8) % BK;
+    int a_smem_row = (threadIdx.x * 8) / BK;
+    const int a_smem_col = (threadIdx.x * 8) % BK;
 
     // Load swizzled A tile into shared memory
-    for (int i = 0; i < a_shmem_iters; i++) {
-      const int gmem_idx = a_shmem_row * K + (block_k + a_shmem_col);
-      int smem_idx = a_shmem_row * BK + a_shmem_col;
+    for (int i = 0; i < a_smem_iters; i++) {
+      const int gmem_idx = a_smem_row * K + (block_k + a_smem_col);
+      int smem_idx = a_smem_row * BK + a_smem_col;
 
       // Swizzle
       smem_idx = smem_idx ^ ((smem_idx & a_swizzle_mask) >> a_swizzle_bits);
 
-      reinterpret_cast<float4 *>(&a_shmem[smem_idx])[0] =
+      reinterpret_cast<float4 *>(&a_smem[smem_idx])[0] =
           reinterpret_cast<const float4 *>(&d_A[gmem_idx])[0];
-      a_shmem_row += a_shmem_row_stride;
+      a_smem_row += a_smem_row_stride;
     }
 
-    int b_shmem_row = (threadIdx.x * 8) / BN;
-    const int b_shmem_col = (threadIdx.x * 8) % BN;
+    int b_smem_row = (threadIdx.x * 8) / BN;
+    const int b_smem_col = (threadIdx.x * 8) % BN;
 
     // Load swizzled B tile into shared memory
-    for (int i = 0; i < b_shmem_iters; i++) {
-      const int gmem_idx = (block_k + b_shmem_row) * N + b_shmem_col;
-      int smem_idx = b_shmem_row * BN + b_shmem_col;
+    for (int i = 0; i < b_smem_iters; i++) {
+      const int gmem_idx = (block_k + b_smem_row) * N + b_smem_col;
+      int smem_idx = b_smem_row * BN + b_smem_col;
 
       // Swizzle
       smem_idx = smem_idx ^ ((smem_idx & b_swizzle_mask) >> b_swizzle_bits);
 
-      reinterpret_cast<float4 *>(&b_shmem[smem_idx])[0] =
+      reinterpret_cast<float4 *>(&b_smem[smem_idx])[0] =
           reinterpret_cast<const float4 *>(&d_B[gmem_idx])[0];
-      b_shmem_row += b_shmem_row_stride;
+      b_smem_row += b_smem_row_stride;
     }
 
     __syncthreads();
 
     // This loop level only affects register usage
     for (int warp_k = 0; warp_k < BK; warp_k += WK) {
-      uint32_t a_shmem_byte_offset =
-          cvta_to_shared_u32(&a_shmem[warptile_row * BK + warp_k]);
+      uint32_t a_smem_byte_offset =
+          cvta_to_shared_u32(&a_smem[warptile_row * BK + warp_k]);
 
       // Load values from shared memory A tile to registers
       for (int m_tile = 0; m_tile < TILES_M; m_tile++) {
         for (int k_frag = 0; k_frag < TILES_K; k_frag++) {
           const int thread_byte_offset =
               ((m_tile * MMA_M + lane_id) * BK + k_frag * MMA_K) * sizeof(half);
-          int total_byte_offset = a_shmem_byte_offset + thread_byte_offset;
+          int total_byte_offset = a_smem_byte_offset + thread_byte_offset;
 
           // Swizzle
           total_byte_offset =
@@ -133,8 +133,8 @@ __global__ void memory_swizzling_kernel(int M, int N, int K, float alpha,
         }
       }
 
-      uint32_t b_shmem_byte_offset =
-          cvta_to_shared_u32(&b_shmem[warp_k * BN + warptile_col]);
+      uint32_t b_smem_byte_offset =
+          cvta_to_shared_u32(&b_smem[warp_k * BN + warptile_col]);
 
       // Load values from shared memory B tile to registers
       for (int k_frag = 0; k_frag < TILES_K; k_frag++) {
@@ -142,7 +142,7 @@ __global__ void memory_swizzling_kernel(int M, int N, int K, float alpha,
           const int thread_byte_offset =
               ((k_frag * MMA_K + threadIdx.x % MMA_K) * BN + n_tile * MMA_N) *
               sizeof(half);
-          int total_byte_offset = b_shmem_byte_offset + thread_byte_offset;
+          int total_byte_offset = b_smem_byte_offset + thread_byte_offset;
 
           // Swizzle
           total_byte_offset =

@@ -46,22 +46,22 @@ __global__ void naive_mma_kernel(int M, int N, int K, float alpha,
     }
   }
 
-  __shared__ half a_shmem[BM][BK];
-  __shared__ half b_shmem[BK][BN];
+  __shared__ half a_smem[BM][BK];
+  __shared__ half b_smem[BK][BN];
 
   for (int k_tile = 0; k_tile < K; k_tile += BK) {
     // Load A tile into shared memory
     for (int i = lane_id; i < BM * BK; i += 32) {
       const int row = i / BK;
       const int col = i % BK;
-      a_shmem[row][col] = d_A[row * K + (k_tile + col)];
+      a_smem[row][col] = d_A[row * K + (k_tile + col)];
     }
 
     // Load B tile into shared memory
     for (int i = lane_id; i < BK * BN; i += 32) {
       const int row = i / BN;
       const int col = i % BN;
-      b_shmem[row][col] = d_B[(k_tile + row) * N + col];
+      b_smem[row][col] = d_B[(k_tile + row) * N + col];
     }
 
     __syncthreads();
@@ -80,10 +80,10 @@ __global__ void naive_mma_kernel(int M, int N, int K, float alpha,
           // Load values from shared memory to registers
           asm volatile("ldmatrix.sync.aligned.m8n8.x2.b16 {%0, %1}, [%2];"
                        : "=r"(a_regs[0]), "=r"(a_regs[1])
-                       : "l"(&a_shmem[a_row_offset][a_col_offset]));
+                       : "l"(&a_smem[a_row_offset][a_col_offset]));
           asm volatile("ldmatrix.sync.aligned.m8n8.x1.trans.b16 {%0}, [%1];"
                        : "=r"(b_regs[0])
-                       : "l"(&b_shmem[b_row_offset][b_col_offset]));
+                       : "l"(&b_smem[b_row_offset][b_col_offset]));
 
           // Perform the MMA operation
           // A fragment distribution: https://docs.nvidia.com/cuda/parallel-thread-execution/#mma-1688-a-f16

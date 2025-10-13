@@ -47,15 +47,15 @@ __global__ void vectorized_mma_kernel(int M, int N, int K, float alpha,
     }
   }
 
-  __shared__ half a_shmem[BM][BK];
-  __shared__ half b_shmem[BK][BN];
+  __shared__ half a_smem[BM][BK];
+  __shared__ half b_smem[BK][BN];
 
   for (int block_k = 0; block_k < K; block_k += BK) {
     for (int i = threadIdx.x; i < BM * BK / 8; i += num_threads) {
       const int linear_idx_half = i * 8;
       const int row = linear_idx_half / BK;
       const int col = linear_idx_half % BK;
-      reinterpret_cast<float4 *>(a_shmem[row])[col / 8] =
+      reinterpret_cast<float4 *>(a_smem[row])[col / 8] =
           reinterpret_cast<const float4 *>(&d_A[row * K + (block_k + col)])[0];
     }
 
@@ -64,7 +64,7 @@ __global__ void vectorized_mma_kernel(int M, int N, int K, float alpha,
       const int row = linear_idx_half / BN;
       const int col = linear_idx_half % BN;
 
-      reinterpret_cast<float4 *>(b_shmem[row])[col / 8] =
+      reinterpret_cast<float4 *>(b_smem[row])[col / 8] =
           reinterpret_cast<const float4 *>(&d_B[(block_k + row) * N + col])[0];
     }
 
@@ -82,7 +82,7 @@ __global__ void vectorized_mma_kernel(int M, int N, int K, float alpha,
           asm volatile("ldmatrix.sync.aligned.m8n8.x2.b16 {%0, %1}, [%2];"
                        : "=r"(a_regs[m_tile][k_frag][0]),
                          "=r"(a_regs[m_tile][k_frag][1])
-                       : "l"(&a_shmem[a_row_offset][a_col_offset]));
+                       : "l"(&a_smem[a_row_offset][a_col_offset]));
         }
       }
 
@@ -94,7 +94,7 @@ __global__ void vectorized_mma_kernel(int M, int N, int K, float alpha,
 
           asm volatile("ldmatrix.sync.aligned.m8n8.x1.trans.b16 {%0}, [%1];"
                        : "=r"(b_regs[k_frag][n_tile][0])
-                       : "l"(&b_shmem[b_row_offset][b_col_offset]));
+                       : "l"(&b_smem[b_row_offset][b_col_offset]));
         }
       }
 
