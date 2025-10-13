@@ -78,10 +78,10 @@ Performance for a 2048x2048 FP16 matrix multiplication on an NVIDIA GeForce RTX 
 | 7   | **Naive WMMA**       |  `~9,941` | 25.4%                  |
 | 8   | **Naive MMA**        |  `~9,450` | 24.2%                  |
 | 9   | **Hierarchical MMA** | `~18,153` | 46.5%                  |
-| 10  | **Vectorized MMA**   | `~27,625` | 70.4%                  |
-| 11  | **Memory swizzling** | `~33,281` | 85.2%                  |
-| 12  | **Buffered GMEM**    | `~35,040` | 89.7%                  |
-| 13  | **Unrolled SMEM**    | `~36,545` | 93.5%                  |
+| 10  | **Vectorized MMA**   | `~28,102` | 71.9%                  |
+| 11  | **Memory swizzling** | `~34,133` | 87.4%                  |
+| 12  | **Buffered GMEM**    | `~35,902` | 91.9%                  |
+| 13  | **Unrolled SMEM**    | `~37,511` | 96.0%                  |
 
 ## Kernel Explanations
 
@@ -157,7 +157,7 @@ This kernel implements the full tiling hierarchy. Blocktiles consist of warptile
 
 ### 10: [Vectorized MMA](./src/kernels/10_vectorized_mma.cuh)
 
-This kernel uses vectorized 128-bit loads for loading values from global memory into shared memory for the A and B tiles. This simple change results in a massive performance boost and the kernel is slowly starting to approach cuBLAS performance on my GPU.
+This kernel uses vectorized 128-bit loads for loading values from global memory into shared memory for the A and B tiles. It also uses vectorized loads for the epilogue. This simple change results in a massive performance boost and the kernel is slowly starting to approach cuBLAS performance on my GPU.
 
 ### 11: [Memory swizzling](./src/kernels/11_memory_swizzling.cuh)
 

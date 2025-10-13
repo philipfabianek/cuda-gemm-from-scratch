@@ -191,18 +191,20 @@ __global__ void memory_swizzling_kernel(int M, int N, int K, float alpha,
       const int col_offset =
           warptile_col + n_tile * MMA_N + thread_id_in_group * 2;
 
-      d_C[row_offset * N + col_offset + 0] =
-          alpha * c_regs[m_tile][n_tile][0] +
-          beta * d_C[row_offset * N + col_offset + 0];
-      d_C[row_offset * N + col_offset + 1] =
-          alpha * c_regs[m_tile][n_tile][1] +
-          beta * d_C[row_offset * N + col_offset + 1];
-      d_C[(row_offset + 8) * N + col_offset + 0] =
-          alpha * c_regs[m_tile][n_tile][2] +
-          beta * d_C[(row_offset + 8) * N + col_offset + 0];
-      d_C[(row_offset + 8) * N + col_offset + 1] =
-          alpha * c_regs[m_tile][n_tile][3] +
-          beta * d_C[(row_offset + 8) * N + col_offset + 1];
+      float2 *c_ptr1 =
+          reinterpret_cast<float2 *>(&d_C[row_offset * N + col_offset]);
+      float2 *c_ptr2 =
+          reinterpret_cast<float2 *>(&d_C[(row_offset + 8) * N + col_offset]);
+
+      const float2 old_c1 = c_ptr1[0];
+      const float2 old_c2 = c_ptr2[0];
+
+      c_ptr1[0] =
+          make_float2(alpha * c_regs[m_tile][n_tile][0] + beta * old_c1.x,
+                      alpha * c_regs[m_tile][n_tile][1] + beta * old_c1.y);
+      c_ptr2[0] =
+          make_float2(alpha * c_regs[m_tile][n_tile][2] + beta * old_c2.x,
+                      alpha * c_regs[m_tile][n_tile][3] + beta * old_c2.y);
     }
   }
 }
